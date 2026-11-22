@@ -58,6 +58,11 @@ final class HeroHandlers {
         port(ports, 0xae38, R::state14);
         port(ports, 0xb028, R::state16);
         port(ports, 0xb094, R::state18);
+        port(ports, 0xb1d8, R::state1a);
+        port(ports, 0xb248, R::state1c);
+        port(ports, 0xb298, R::state1e);
+        port(ports, 0xb2ca, R::state20);
+        port(ports, 0xb2fe, R::state22);
     }
 
     private static int sw(int reg, int v) {
@@ -568,7 +573,7 @@ final class HeroHandlers {
             w16(a1 + 0x1a, 0x40);
             d2 = sw(d2, r16(0x108b6));
             if ((d2 & 0xffff) == 0 && r8(0x10aba) != 0) {
-                jump(0xb31e);
+                b31e();
                 return;
             }
             d0 &= ~1;
@@ -989,13 +994,13 @@ final class HeroHandlers {
             if (r16(a0 + 0x10) == 0x14) {
                 d2 = sb(d2, r8(0x10aba));
                 if ((d2 & 0xff) != 0) {
-                    jump(0xb300);
+                    b300();
                     return;
                 }
             }
             d2 = sb(d2, r8(a1 + 0x72) & r8(0x10aba));
             if ((d2 & 0xff) != 0) {
-                jump(0xb31e);
+                b31e();
                 return;
             }
             w16(0x10ac8, 0);
@@ -1084,7 +1089,7 @@ final class HeroHandlers {
             if ((d2 & 0xffff) == 0) {
                 d2 = sb(d2, r8(0x10aba));
                 if ((d2 & 0xff) != 0) {
-                    jump(0xb300);
+                    b300();
                     return;
                 }
             }
@@ -1281,6 +1286,191 @@ final class HeroHandlers {
             if ((v & 0x80) == 0) {
                 a652();
             }
+        }
+
+        // ---------------------------------------------------------------- states 1A-22: Stix actions
+
+        private void flag1750b(int bit) {
+            w8(0x1750b, r8(0x1750b) | (1 << bit));
+        }
+
+        /** 0xB1D8. */
+        void state1a() {
+            if (r8(a1 + 0x72) == 0) {
+                a6a8();
+                return;
+            }
+            if (r8(a0 + 6) != 0) {
+                w8(a0 + 6, 0);
+                if (r16(a0 + 2) != 0xc) {
+                    d1 = sw(d1, d1 + 2);
+                    d2 = r32(a1 + 0x48);
+                    if (d2 == 0) {
+                        return;
+                    }
+                    a2 = d2;
+                    if (r32(a2 + 0x2c) != 0) {
+                        b238();
+                    }
+                    return;
+                }
+            }
+            w8(a1 + 0x4c, r8(a1 + 0x4c) + 1);
+            if ((byte) r8(a1 + 0x4c) < 3) {
+                return;
+            }
+            w8(a1 + 0x4c, 0);
+            int t = (short) (r16(a0) - 1);
+            w16(a0, t);
+            if (t <= 0) {
+                b238();
+                return;
+            }
+            d1 = sw(d1, d1 + 2);
+            d2 = sw(d2, r16(a0 + 4));
+            if ((d2 & 0xffff) != r16(a0)) {
+                return;
+            }
+            if (r16(a0 + 2) != 0xc) {
+                w8(a1 + 0x4c, r8(a1 + 0x4c) - 2);
+            }
+            flag1750b(1);
+        }
+
+        /** 0xB238: end of the action, back to standing (or crouching). */
+        private void b238() {
+            if (r16(a0 + 2) != 0xc) {
+                a652();
+                return;
+            }
+            d1 = 0xe;
+            ab96();
+        }
+
+        /** 0xB248. */
+        void state1c() {
+            if (r8(a1 + 0x72) == 0) {
+                a6a8();
+                return;
+            }
+            int x = s16(a0);
+            if (x <= 3 && x >= 2) {
+                flag1750b(1);
+            }
+            w8(a1 + 0x4c, r8(a1 + 0x4c) + 1);
+            if ((byte) r8(a1 + 0x4c) < 3) {
+                return;
+            }
+            w8(a1 + 0x4c, 0);
+            int t = (short) (r16(a0) - 1);
+            w16(a0, t);
+            if (t <= 0) {
+                b238();
+                return;
+            }
+            d1 = sw(d1, d1 + 2);
+            if (r16(a0) == 1) {
+                w16(a0 + 0x12, r16(a0 + 0x12) - 0x14);
+                d7 = 6;
+                // 0xAA34
+                int s1 = d1, sa0 = a0, sa1 = a1;
+                w8(a1 + 0x56, 0);
+                jump(0xbdea);
+                d1 = s1;
+                a0 = sa0;
+                a1 = sa1;
+                return;
+            }
+            if (r16(a0) == 3) {
+                w8(a1 + 0x4c, r8(a1 + 0x4c) - 2);
+            }
+        }
+
+        /** 0xB298. */
+        void state1e() {
+            int v = ~r8(a1 + 0x4c) & 0xff;
+            w8(a1 + 0x4c, v);
+            if ((v & 0x80) == 0) {
+                int t = (short) (r16(a0) - 1);
+                w16(a0, t);
+                if (t <= 0) {
+                    b238();
+                    return;
+                }
+                d1 = sw(d1, d1 + 2);
+            }
+            int s = (short) d1;
+            if (s < 4 || s > 0x14) {
+                return;
+            }
+            if (s == 0x14 && (r8(a1 + 0x4c) & 0x80) == 0) {
+                if ((d0 & 0x80) == 0) {
+                    return;
+                }
+                d1 = 4;
+                w16(a0, r16(a0) + 8);
+            }
+            flag1750b(6);
+        }
+
+        /** 0xB2CA. */
+        void state20() {
+            w8(a1 + 0x4c, r8(a1 + 0x4c) + 1);
+            d0 = sw(d0, r16(a0));
+            d0 = sb(d0, r8(0xb2f5 + (short) d0));
+            if ((byte) d0 > (byte) r8(a1 + 0x4c)) {
+                return;
+            }
+            w8(a1 + 0x4c, 0);
+            int t = (short) (r16(a0) - 1);
+            w16(a0, t);
+            if (t <= 0) {
+                b238();
+                return;
+            }
+            if (r16(a0) == 3) {
+                flag1750b(5);
+            }
+            d1 = sw(d1, d1 + 2);
+        }
+
+        /** 0xB2FE. */
+        void state22() {
+        }
+
+        // ---------------------------------------------------------------- death entries
+
+        /** 0xB300: drowned / fallen. */
+        void b300() {
+            w8(0x108e3, 0xec);
+            d1 = 0x30;
+            w16(a0, 0x29);
+            w32(a1 + 0x2c, 0x10000);
+            w16(0x10a58, 0);
+            b330();
+        }
+
+        /** 0xB31E: out of energy. */
+        void b31e() {
+            w8(0x108e3, 0xf8);
+            d1 = 0;
+            w16(a0, 0x19);
+            w32(a1 + 0x2c, 0);
+            b330();
+        }
+
+        private void b330() {
+            w32(a1 + 0x28, 0);
+            w16(0x10ac8, 0x1220);
+            d2 = sb(d2, r8(0x8276));
+            if ((d2 & 0x80) != 0) {
+                w8(0x108e2, 0xff);
+                a2 = 0xb4c4;
+                w16(a2 + 0x44, 0);
+                w32(0x5a72, a2);
+            }
+            d0 = 0x24;
+            setState();
         }
 
         // ---------------------------------------------------------------- state 0: standing

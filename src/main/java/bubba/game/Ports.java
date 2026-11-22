@@ -40,6 +40,17 @@ public final class Ports {
         HeroContacts.register(PORTS);
         SolidObjects.register(PORTS);
         BlockAnims.register(PORTS);
+        PORTS.put(0xc67a, new Port() {
+            @Override
+            public void run(M68k c) {
+                SetCode.startAnim(c);
+            }
+
+            @Override
+            public int[] outputs() {
+                return new int[]{0, 7, 14};
+            }
+        });
         HeroSprite.register(PORTS);
         StatusValues.register(PORTS);
         StixPort.register(PORTS);
@@ -78,6 +89,36 @@ public final class Ports {
 
     public static void install(M68k cpu) {
         for (Map.Entry<Integer, Port> e : PORTS.entrySet()) {
+            int addr = e.getKey();
+            Port port = e.getValue();
+            cpu.hook(addr, VERIFY ? c -> verify(c, addr, port) : port);
+        }
+    }
+
+    /**
+     * The level's native routines (set code) already ported to Java ({@link bubba.entity.natives}),
+     * installed at their address in the loaded set ($108EE + offset). They return a4 (the script
+     * pointer, possibly redirected).
+     */
+    public static void installNatives(M68k cpu, bubba.level.LevelData level) {
+        bubba.entity.natives.NativeContext ctx = new bubba.entity.natives.NativeContext(cpu.mem, level, cpu);
+        for (int off : bubba.entity.natives.Natives.ported(level.fileId())) {
+            bubba.entity.natives.NativeRoutine r = bubba.entity.natives.Natives.find(level.fileId(), off);
+            int addr = GameMemory.SET_BASE + off;
+            Port port = new Port() {
+                @Override
+                public void run(M68k c) {
+                    c.a[4] = r.run(ctx, new bubba.entity.LevelObject(c.mem, c.a[5]), c.a[4]);
+                }
+
+                @Override
+                public int[] outputs() {
+                    return new int[]{12};
+                }
+            };
+            cpu.hook(addr, VERIFY ? c -> verify(c, addr, port) : port);
+        }
+        for (Map.Entry<Integer, Port> e : SetCode.forLevel(level.fileId()).entrySet()) {
             int addr = e.getKey();
             Port port = e.getValue();
             cpu.hook(addr, VERIFY ? c -> verify(c, addr, port) : port);

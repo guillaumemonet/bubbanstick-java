@@ -69,6 +69,7 @@ public final class GameEmulator {
         cpu.hook(0x8470, c -> { });          // BOB display: done in Java
         cpu.hook(0x79ce, c -> c.z = true);   // keyboard: no key pressed
         bubba.game.Ports.install(cpu);       // routines already ported to Java
+        bubba.game.Ports.installNatives(cpu, level); // the level's own routines ported so far
         ram.write16(0x3b2c, 0x4e71);         // VBL waits of the main loop -> nop
         ram.write16(0x3cd0, 0x4e71);
         ram.write16(0x53a2, 0x4e71);         // VBL wait of the hero sprite routine (it also keeps +$54)

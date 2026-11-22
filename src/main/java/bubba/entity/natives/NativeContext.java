@@ -15,9 +15,21 @@ public final class NativeContext {
     public final LevelData level;
     private final M68k cpu;
 
+    /** The game's processor when the natives run inside the game (calls nest into it). */
+    private final M68k game;
+
+    /** Context bound to the running game: calls go to the game code, the map is read in memory. */
+    public NativeContext(GameMemory ram, LevelData level, M68k game) {
+        this.ram = ram;
+        this.level = level;
+        this.cpu = null;
+        this.game = game;
+    }
+
     public NativeContext(GameMemory ram, LevelData level) {
         this.ram = ram;
         this.level = level;
+        this.game = null;
         this.cpu = new M68k(ram);
         cpu.hook(0x7bc8, c -> { });          // sound: ignored (same as NativeCalls)
         cpu.hook(0x7bca, c -> { });
@@ -26,7 +38,9 @@ public final class NativeContext {
 
     /** Hook a game routine of this context's interpreter (e.g. the object spawner $107B2). */
     public void hook(int address, M68k.Hook h) {
-        cpu.hook(address, h);
+        if (cpu != null) {
+            cpu.hook(address, h);
+        }
     }
 
     /**
@@ -36,6 +50,17 @@ public final class NativeContext {
      * the condition codes after the call are returned (X N Z V C bits).
      */
     public int callGame(int address, int[] d, int[] a) {
+        if (game != null) {
+            int[] saved = game.saveRegisters();
+            System.arraycopy(d, 0, game.d, 0, 8);
+            System.arraycopy(a, 0, game.a, 0, 7);
+            game.callNested(address, 5_000_000, false);
+            System.arraycopy(game.d, 0, d, 0, 8);
+            System.arraycopy(game.a, 0, a, 0, 7);
+            int ccr = game.ccr();
+            game.restoreRegisters(saved);
+            return ccr;
+        }
         System.arraycopy(d, 0, cpu.d, 0, 8);
         System.arraycopy(a, 0, cpu.a, 0, 7);
         cpu.call(address, 200_000);
@@ -62,6 +87,10 @@ public final class NativeContext {
 
     /** Block attribute word of the map cell (bx, by) - what the game reads through L_10888/L_10890. */
     public int cellAttribute(int bx, int by) {
+        if (game != null) { // the tables in memory, as the game reads them
+            int cell = ram.read16(ram.read32(0x10888) + ((by * ram.read16(0x10a48) + 2 * bx) & 0xffffffff));
+            return ram.read16(ram.read32(0x10890) + cell);
+        }
         return level.attribute(level.block(bx, by));
     }
 }

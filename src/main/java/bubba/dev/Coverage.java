@@ -24,13 +24,18 @@ public final class Coverage {
         Assets assets = new Assets(Paths.get(args[0]));
         int frames = args.length > 1 ? Integer.parseInt(args[1]) : 1500;
         TreeSet<Integer> all = new TreeSet<>();
+        TreeSet<Integer> perStage = new TreeSet<>();
         Map<Integer, TreeSet<Integer>> byRange = new TreeMap<>();
         for (int stage = 1; stage <= 5; stage++) {
             GameEmulator emu = new GameEmulator(assets, LevelData.stage(assets, stage), 9, 6, null);
             java.util.Random r = new java.util.Random(stage);
+            final int st = stage;
             emu.cpu.trace = pc -> {
                 if (pc < 0x60000) {
                     all.add(pc);
+                    if (pc >= bubba.cpu.GameMemory.SET_BASE + 0x1000) {
+                        perStage.add(st << 24 | pc); // set code: per stage
+                    }
                 }
             };
             int joy = 0;
@@ -58,6 +63,9 @@ public final class Coverage {
             StringBuilder b = new StringBuilder();
             for (int pc : all) {
                 b.append(String.format("%05x%n", pc));
+            }
+            for (int v : perStage) {
+                b.append(String.format("s%d %05x%n", v >>> 24, v & 0xffffff));
             }
             java.nio.file.Files.writeString(Paths.get(System.getProperty("coverage.out")), b);
         }

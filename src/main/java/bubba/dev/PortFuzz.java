@@ -43,6 +43,18 @@ public final class PortFuzz {
             c.restoreRegisters(regs);
             if (routine >= 0xa318 && routine < 0xbea8) {
                 setupHero(c, m, rnd, routine);
+            } else if (routine == 0x129ee) { // stage 5 callback: sequences
+                m.write8(0x12d52, new int[]{0, 0, 1, 0x80}[rnd.nextInt(4)]);
+                m.write8(0x12d53, new int[]{0, 1, 0x80}[rnd.nextInt(3)]);
+                m.write8(0x12d54, new int[]{0, 1, 0x80}[rnd.nextInt(3)]);
+                m.write8(0x12d55, new int[]{0, 1, 0x80}[rnd.nextInt(3)]);
+                m.write8(0x12d57, rnd.nextInt(4) == 0 ? 1 : 0);
+                m.write8(0x12cc4 + 0x91, rnd.nextInt(3));
+                m.write8(0x12c4e + 0x105, rnd.nextInt(3));
+                m.write8(0x12c32 + 0x122, rnd.nextInt(3));
+                m.write16(0x12b1a, rnd.nextInt(3));
+                m.write16(0x10912, rnd.nextInt(0x1000));
+                c.a[0] = 0xc750 + 2 + 0x16;
             } else if (routine == 0x12c18) { // stage 2 callback: map switch requested or not
                 m.write8(0x10ad9, rnd.nextInt(2));
                 m.write8(0x12c57, rnd.nextInt(256));

@@ -680,9 +680,7 @@ final class SetCode {
         m.write16(a[0] - 0x10, 0);
         d[0] = sb(d[0], m.read8(0x12d52));
         if ((d[0] & 0xff) != 0) {
-            int v = (byte) d[0];
-            c.setCcr((v < 0 ? 8 : 0)); // move.b flags: N, Z clear
-            Calls.call(c, 0x12a0e);
+            s5Sequence(c);
             return;
         }
         d[0] = sb(d[0], m.read8(0x12d57));
@@ -950,6 +948,219 @@ final class SetCode {
             }
             d[2] = 0xffff;
             d[1] = sw(d[1], d[1] - 1);
+        }
+    }
+
+    // ------------------------------------------------------------------ stage 5 sequences
+
+    /**
+     * Stage 5, $12A0E (from the callback $129EE, d0 = $12D52): scripted block animations ($12BA0 =
+     * current script, $12BA4 = delay): the end sequence ($12D52 &gt; 0), three timed ones
+     * ($12D55 / $12D53 / $12D54, negative = stop once done), else one chosen by the camera x
+     * ($12B04 limits, $12B0E steps from $12BB0) repeated after a random wait.
+     */
+    static void s5Sequence(M68k c) {
+        GameMemory g = c.mem;
+        int[] d = c.d, a = c.a;
+        if ((byte) d[0] > 0) {
+            a[0] = 0x10a60;
+            g.write32(a[0], 0);
+            a[0] += 4;
+            g.write16(a[0], 0);
+            a[0] = 0x12bfe;
+            g.write8(a[0] + 0x154, 0xff);
+            g.write32(a[0] - 0xe8, 0);
+            s5Start(c);
+            s5Run(c);
+            return;
+        }
+        d[0] = sb(d[0], g.read8(0x12d55));
+        if ((d[0] & 0xff) != 0) {
+            if ((d[0] & 0x80) != 0) {
+                d[0] = g.read32(0x12ba0);
+                if (d[0] != 0) {
+                    s5Run(c);
+                    return;
+                }
+                a[0] = 0x12d52;
+                g.write8(a[0], 0);
+                return;
+            }
+            if (s5Timer(c, 0x12cc4, 0x91, 0x1ae)) {
+                return;
+            }
+        }
+        d[0] = sb(d[0], g.read8(0x12d53));
+        if ((d[0] & 0xff) != 0) {
+            if ((d[0] & 0x80) != 0) {
+                d[0] = g.read32(0x12ba0);
+                if (d[0] != 0) {
+                    s5Run(c);
+                    return;
+                }
+                a[0] = 0x12d53;
+                g.write8(a[0], 0);
+            } else {
+                d[0] = sb(d[0], g.read8(0x12d54));
+                if ((d[0] & 0x80) != 0) {
+                    if (s5Stop(c, 0x12d54)) {
+                        return;
+                    }
+                } else if (s5Timer(c, 0x12c4e, 0x105, 0x138)) {
+                    return;
+                }
+            }
+        }
+        // 0x12A7A
+        d[0] = sb(d[0], g.read8(0x12d54));
+        if ((d[0] & 0xff) != 0) {
+            if ((d[0] & 0x80) != 0) {
+                if (s5Stop(c, 0x12d54)) {
+                    return;
+                }
+            } else if (s5Timer(c, 0x12c32, 0x122, 0x11c)) {
+                return;
+            }
+        }
+        // 0x12AA6
+        d[0] = g.read32(0x12ba0);
+        if (d[0] != 0) {
+            s5Run(c);
+            return;
+        }
+        a[0] = 0x12bb0;
+        a[1] = 0x12b04;
+        a[2] = 0x12b0e;
+        d[0] = sw(d[0], g.read16(0x10912));
+        while (true) {
+            int lim = (short) g.read16(a[1]);
+            a[1] += 2;
+            if ((short) d[0] <= lim) {
+                break;
+            }
+            a[0] += (short) g.read16(a[2]);
+            a[2] += 2;
+        }
+        a[1] = 0x12b16;
+        if (a[0] != g.read32(a[1])) {
+            g.write32(a[1], a[0]);
+            s5Start(c);
+            s5Run(c);
+            return;
+        }
+        int t = (short) (g.read16(a[1] + 4) - 1);
+        g.write16(a[1] + 4, t);
+        if (t > 0) {
+            return;
+        }
+        a[0] -= 0xa;
+        s5Start(c);
+        s5Run(c);
+    }
+
+    /** Count down the byte at a0 + {@code off}; at 0 start the script a0 (true = done). */
+    private static boolean s5Timer(M68k c, int base, int off, int clr) {
+        GameMemory g = c.mem;
+        c.a[0] = base;
+        int v = (byte) (g.read8(base + off) - 1);
+        g.write8(base + off, v);
+        if (v > 0) {
+            return false;
+        }
+        g.write8(base + off, 0xff);
+        g.write32(base - clr, 0);
+        s5Start(c);
+        s5Run(c);
+        return true;
+    }
+
+    /** A finished sequence: wait for the script, then clear its flag (true = done). */
+    private static boolean s5Stop(M68k c, int flag) {
+        GameMemory g = c.mem;
+        c.d[0] = g.read32(0x12ba0);
+        if (c.d[0] != 0) {
+            s5Run(c);
+            return true;
+        }
+        c.a[0] = flag;
+        g.write8(flag, 0);
+        return false;
+    }
+
+    /** $12B1C: start the script a0 (delay = its second byte), random wait $12B1A. */
+    private static void s5Start(M68k c) {
+        GameMemory g = c.mem;
+        int[] d = c.d, a = c.a;
+        a[1] = 0x12ba0;
+        g.write32(a[1], a[0]);
+        a[1] += 4;
+        g.write8(a[1], g.read8(a[0] + 1));
+        a[0] = 0x10894;
+        d[0] = g.read32(a[0]);
+        a[0] += 4;
+        d[1] = g.read32(a[0]);
+        d[1] = sw(d[1], d[1] ^ d[0]);
+        int w = d[1] & 0xffff;
+        d[1] = sw(d[1], (w >>> 1) | (w << 15));
+        d[0] = sw(d[0], d[0] ^ d[1]);
+        d[0] = (d[0] << 16) | (d[0] >>> 16);
+        g.write32(a[0], d[0]);
+        a[0] -= 4;
+        g.write32(a[0], d[1]);
+        d[1] = sw(d[1], d[1] & 0x3f);
+        d[1] = sw(d[1], d[1] + 0x28);
+        g.write16(a[1] - 0x8a, d[1]);
+    }
+
+    /** $12B48: one step of the script: (count, delay, then count+1 pairs graphics / block). */
+    private static void s5Run(M68k c) {
+        GameMemory g = c.mem;
+        int[] d = c.d, a = c.a;
+        a[1] = 0x12ba0;
+        d[0] = g.read32(a[1]);
+        a[1] += 4;
+        if (d[0] == 0) {
+            return;
+        }
+        a[0] = d[0];
+        while (true) {
+            d[0] = sb(d[0], g.read8(a[0]++));
+            if ((d[0] & 0x80) != 0) {
+                g.write16(a[1], 0);
+                a[1] -= 4;
+                g.write32(a[1], 0);
+                return;
+            }
+            d[0] = sw(d[0], (byte) d[0]);
+            a[0]++;
+            a[2] = 0x10b20;
+            a[3] = g.read32(0x1088c);
+            a[4] = g.read32(0x10890);
+            do {
+                d[2] = g.read16(a[0]);
+                a[0] += 2;
+                d[2] += d[2];
+                d[2] += a[3];
+                d[3] = g.read16(a[0]);
+                a[0] += 2;
+                d[3] = sw(d[3], g.read16(a[2] + (short) d[3]));
+                g.write32(a[4] + 2 + d[3], d[2]);
+                d[0] = sw(d[0], d[0] - 1);
+            } while ((d[0] & 0xffff) != 0xffff);
+            int v = (byte) (g.read8(a[1]) - 1);
+            g.write8(a[1], v);
+            if (v > 0) {
+                d[0] = 1;
+                return;
+            }
+            if (v == 0) {
+                g.write8(a[1], g.read8(a[0] + 1));
+                a[1] -= 4;
+                g.write32(a[1], a[0]);
+                return;
+            }
+            g.write8(a[1], g.read8(a[0] + 1));
+            g.write32(a[1] - 4, a[0]);
         }
     }
 }

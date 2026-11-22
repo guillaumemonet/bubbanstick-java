@@ -64,6 +64,8 @@ final class HeroHandlers {
         port(ports, 0xb2ca, R::state20);
         port(ports, 0xb2fe, R::state22);
         port(ports, 0xb35c, R::state24);
+        port(ports, 0xa8e6, R::a8e6);
+        port(ports, 0xa970, R::a970);
     }
 
     private static int sw(int reg, int v) {
@@ -1642,6 +1644,316 @@ final class HeroHandlers {
             d1 = 0x2e;
             push();
             b3dc();
+        }
+
+        // ---------------------------------------------------------------- Stix: catch / throw / hit
+
+        /** 0xA8E6 (from 0x9EFA, fire released): throw Stix; ends through the epilogue. */
+        void a8e6() {
+            w16(a0 + 0xc, r16(0xbda4));
+            if (!a82e()) {
+                w16(a0 + 0x10, 3);
+                w16(a0 + 0xe, r16(a1 + 0x4e));
+                d2 = 0;
+                d3 = 0;
+                d4 = 0x7f;
+                int x = r16(a0 + 0xc);
+                if (x == 0xc) {
+                    w32(a1 + 0x28, 0);
+                    d0 = 0x1a;
+                    d1 = 0x18;
+                    d2 = 0x1c;
+                    d3 = 0xfffffff9;
+                    d5 = 6;
+                    d6 = 4;
+                    b14c();
+                } else {
+                    if (x == 0x10) {
+                        w16(a0 + 0x10, r16(a0 + 0x10) + 5);
+                        d1 = 0x1a;
+                    } else {
+                        d2 = 8;
+                        d3 = 0xffffffb3;
+                        if (r8(a1 + 0x72) == 0) {
+                            w16(a0 + 0x10, r16(a0 + 0x10) + 1);
+                            d1 = 0x2a;
+                            d4 = 3;
+                        } else {
+                            d1 = 8;
+                            d4 = 2;
+                            if (r32(a1 + 0x28) == 0) {
+                                w16(a0 + 0x10, r16(a0 + 0x10) + 1);
+                                d1 = 0;
+                                d4 = 2;
+                            }
+                        }
+                    }
+                    if (r8(a1 + 0x55) != 0) {
+                        d2 = sw(d2, -d2);
+                        d2 = sw(d2, d2 - 0x2a);
+                    }
+                    w16(a0 + 0x14, d2);
+                    w16(a0 + 0x16, d3);
+                    w16(a0 + 0x18, d4);
+                    d0 = 0xa;
+                    setState();
+                }
+            }
+            sync();
+            HeroStates.epilogue(c);
+            load();
+        }
+
+        /** 0xA970 (from 0x9EFA, fire held): hit with Stix; ends through the epilogue. */
+        void a970() {
+            w16(a0 + 0xc, r16(0xbda4));
+            if (!a82e()) {
+                d2 = 0x26;
+                d3 = 0xffffffd9;
+                w16(a0 + 0x10, 5);
+                w16(a0 + 0xe, r16(a1 + 0x4e));
+                int x = r16(a0 + 0xc);
+                if (x == 0xc) {
+                    d1 = 0x10;
+                    w16(a0 + 0x10, r16(a0 + 0x10) - 1);
+                    w32(a1 + 0x28, 0);
+                    d2 = 0x27;
+                    d3 = 0xffffffec;
+                } else if (x == 0x10) {
+                    w16(a0 + 0x10, r16(a0 + 0x10) - 1);
+                    d1 = 0x18;
+                    d2 = 0;
+                    d3 = 0xffffffb8;
+                } else if (r8(a1 + 0x72) == 0) {
+                    w16(a0 + 0x10, r16(a0 + 0x10) - 1);
+                    d1 = 0x20;
+                    d2 = 0x32;
+                    d3 = 0xffffffcb;
+                } else {
+                    d1 = 0;
+                    if (r32(a1 + 0x28) != 0) {
+                        d1 = 0xa;
+                        w16(a0 + 0x10, r16(a0 + 0x10) - 2);
+                        d2 = 5;
+                        d3 = sw(d3, 0x8c);
+                        sound();
+                        d2 = 0x26;
+                        d3 = 0xffffffd9;
+                    }
+                }
+                w16(a0 + 0x12, d2);
+                w16(a0 + 0x14, d3);
+                d0 = 8;
+                setState();
+            }
+            sync();
+            HeroStates.epilogue(c);
+            load();
+        }
+
+        /**
+         * 0xA82E: pushing towards a ledge against a wall, standing still on the ground: drops its
+         * return address and does a climbing action (table 0xA8DA by the wall bits of +$68).
+         * Returns true when it did (the caller's code is skipped).
+         */
+        private boolean a82e() {
+            int x = r16(a0 + 0xc);
+            if (x == 0x10 || x == 0xc) {
+                return false;
+            }
+            if (r16(a1 + 0x68) < 0x800 || r8(a1 + 0x72) == 0) {
+                return false;
+            }
+            d2 = sw(d2, r16(a1 + 0x6a));
+            if ((d2 & 0xffff) != r16(a1 + 6)) {
+                return false;
+            }
+            d2 = sb(d2, r8(a1 + 0x55));
+            if ((d2 & 0xff) != r8(a1 + 0x65)) {
+                return false;
+            }
+            d1 = sb(d1, d2);
+            d1 = sb(d1, d1 + 3);
+            if ((d0 & (1 << (d1 & 31))) == 0) {
+                return false;
+            }
+            d1 = 0xb;
+            d1 = sb(d1, d1 - d2);
+            d2 = sw(d2, r16(a1 + 0x68));
+            if ((d2 & (1 << (d1 & 31))) == 0) {
+                return false;
+            }
+            d1 = r32(a1 + 0x2c);
+            if (d1 != r32(a1 + 0x60)) {
+                return false;
+            }
+            d1 = r32(a1 + 0x48);
+            if (d1 != 0) {
+                a2 = d1;
+                if (r32(a2 + 0x2c) != 0) {
+                    return false;
+                }
+            }
+            d1 = sw(d1, r16(a1 + 6) & 0xf);
+            if ((d1 & 0xffff) != 0) {
+                return false;
+            }
+            d1 = r32(0x17506);
+            if (d1 != 0) {
+                a2 = d1;
+                d1 = sw(d1, r16(a2 + 6) + r16(a2 + 0x16) + r16(a2 + 0x1a) - r16(a1 + 6));
+                if ((short) d1 < 0) {
+                    d1 = sw(d1, -d1);
+                }
+                if ((short) d1 >= 0x10) {
+                    return false;
+                }
+            }
+            d1 = 0;
+            w32(a1 + 0x28, 0);
+            int w = d2 & 0xffff;
+            d2 = sw(d2, ((w << 4) | (w >>> 12)) & 0xffff);
+            d2 = sw(d2, d2 & 0xe);
+            d2 = sw(d2, r16(0xa8da + (short) d2));
+            int target = 0xa8da + (short) d2;
+            switch (target) {
+                case 0xb09e -> {
+                    d0 = 0x1c;
+                    d5 = 6;
+                    b0a8();
+                }
+                case 0xb0a4 -> {
+                    d0 = 0x1a;
+                    d5 = 5;
+                    b0a8();
+                }
+                case 0xb1b6 -> {
+                    d2 = 0x14;
+                    d3 = 0xffffffec;
+                    b19c();
+                    w16(a0, 0xd);
+                    d0 = 0x1e;
+                    setState();
+                }
+                case 0xb1c6 -> {
+                    d2 = 0x14;
+                    d3 = 0xfffffffc;
+                    b19c();
+                    w16(a0, 7);
+                    d0 = 0x20;
+                    setState();
+                }
+                case 0xb1d6 -> {
+                }
+                default -> throw new IllegalStateException(String.format("climb action $%X", target));
+            }
+            return true;
+        }
+
+        /** 0xB0A8: climbing up a step (map test in front, or the object $17506). */
+        private void b0a8() {
+            d6 = 3;
+            d4 = r32(0x17506);
+            if (d4 != 0) {
+                a2 = d4;
+                if (s16(a2 + 0x1a) >= 0x30) {
+                    b13e();
+                } else {
+                    b146();
+                }
+                return;
+            }
+            d1 = sw(d1, r16(a1 + 0x14) + r16(a1 + 0x18));
+            if ((r8(a1 + 0x55) & 0x80) != 0) {
+                d1 = sw(d1, -d1 - 1);
+            }
+            d1 = sw(d1, d1 + r16(a1 + 2));
+            d2 = sw(d2, r16(a1 + 6) - 1);
+            d1 = sw(d1, (short) d1 >> 4);
+            d2 = sw(d2, (short) d2 >> 4);
+            d3 = sw(d3, r16(0x10a48));
+            d2 = (d2 & 0xffff) * (d3 & 0xffff);
+            d1 = sw(d1, d1 * 2);
+            d2 = sw(d2, d2 + d1);
+            d4 = 0;
+            a2 = r32(0x10888);
+            a3 = r32(0x10890);
+            d4 = sw(d4, r16(a2 + d2));
+            if (r16(a3 + d4) >= 0x800) {
+                if (r16(a0 - 2) != 0xc) {
+                    return;
+                }
+                d1 = 0x18;
+                d2 = 0x11;
+                d3 = 0xfffffff9;
+                d6 = 4;
+                b14c();
+                return;
+            }
+            if (r16(a0 - 2) == 0xc) {
+                return;
+            }
+            d2 = sw(d2, d2 - d3);
+            d4 = sw(d4, r16(a2 + d2));
+            d2 = sw(d2, d2 - d3);
+            if (r16(a3 + d4) >= 0x800) {
+                b146();
+                return;
+            }
+            d4 = sw(d4, r16(a2 + d2));
+            if (r16(a3 + d4) < 0x800) {
+                return;
+            }
+            b13e();
+        }
+
+        private void b13e() {
+            d1 = 0xc;
+            d2 = 0x11;
+            d3 = 0xffffffd9;
+            b14c();
+        }
+
+        private void b146() {
+            d1 = 0;
+            d2 = 0x11;
+            d3 = 0xffffffe9;
+            b14c();
+        }
+
+        /** 0xB14C: Stix planted at (d2, d3) from Bubba, action state d0. */
+        private void b14c() {
+            w16(a0 + 2, r16(0xbda4));
+            w16(a0 + 0x12, d2);
+            w16(a0 + 0x14, d3);
+            if ((r8(a1 + 0x55) & 0x80) != 0) {
+                d2 = sw(d2, -d2);
+            }
+            w16(a0 + 4, d6);
+            w8(a0 + 6, 0xff);
+            d2 = sw(d2, d2 + r16(a1 + 2));
+            w16(0x1098a, d2);
+            d3 = sw(d3, d3 + r16(a1 + 6));
+            w16(0x1098e, d3);
+            w16(a0, d5);
+            d4 = r32(0x17506);
+            if (d4 != 0 && (d0 & 0xffff) != 0x1a) {
+                w32(0x109cc, d4);
+                a2 = d4;
+                w8(a2 + 0x9c, 0xff);
+            }
+            setState();
+        }
+
+        /** 0xB19C: point (d2, d3) from Bubba (mirrored when facing left) into $17510. */
+        private void b19c() {
+            if ((r8(a1 + 0x55) & 0x80) != 0) {
+                d2 = sw(d2, -d2);
+            }
+            d2 = sw(d2, d2 + r16(a1 + 2));
+            d3 = sw(d3, d3 + r16(a1 + 6));
+            w16(0x17510, d2);
+            w16(0x17512, d3);
         }
 
         // ---------------------------------------------------------------- state 0: standing

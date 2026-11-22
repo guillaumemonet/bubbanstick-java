@@ -146,6 +146,11 @@ public final class Ports {
         }
     }
 
+    /** A game routine called from outside the ported code (level start). */
+    public static void call(M68k c, int addr) {
+        Calls.call(c, addr);
+    }
+
     /** Runs the Java port of the routine at addr (dev tools: fuzzing against the original). */
     public static void runJava(M68k c, int addr) {
         Port p = PORTS.get(addr);

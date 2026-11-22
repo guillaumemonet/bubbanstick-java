@@ -102,8 +102,8 @@ public final class GameEmulator {
         ram.write16(LIVES, lives);
         ram.write16(ENERGY, energy);
         cpu.a[7] = GameMemory.STACK_TOP;
-        cpu.call(0x6c18, 50_000_000);        // end of the level start: hero, objects, Stix
-        cpu.call(0x8638, 1_000_000);         // status bar: energy refilled step by step
+        bubba.game.Ports.call(cpu, 0x6c18);  // end of the level start: hero, objects, Stix
+        bubba.game.Ports.call(cpu, 0x8638);  // status bar: energy refilled step by step
         if (score != null) {
             for (int i = 0; i < 3; i++) {
                 ram.write8(SCORE + i, score[i]);

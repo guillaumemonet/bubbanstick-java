@@ -27,43 +27,27 @@ Le jeu est reconstruit routine par routine à partir du désassemblage de l'exé
 1. **Extraction** (paquet `bubba.extract`). Le jeu lit les disquettes (système de fichiers
    AmigaDOS), décompresse les fichiers (RNC ProPack 1 et 2, SPAK, NoisePacker) et convertit tout
    en formats courants : PNG, WAV, MOD et JSON.
-2. **Exécution.** Le moteur Java (fenêtre, boucle à 50 Hz, rendu, son) fait tourner la boucle de
-   jeu originale. Ce qui n'est pas encore porté est exécuté par un petit interpréteur 68000
-   (`bubba.cpu.M68k`).
-3. **Portage.** Chaque routine originale est réécrite en Java et branchée à la place du code 68000.
-   Le mode vérification compare chaque portage avec l'original, mémoire et registres, image par
-   image.
-
-Le but est de supprimer complètement l'émulation : à terme, l'interpréteur 68000 ne servira plus
-que d'oracle de vérification pendant le développement.
+2. **Portage.** Chaque routine de l'exécutable original a été réécrite en Java : la boucle
+   principale, Bubba et Stix, les objets, la caméra, la barre d'état, le démarrage des niveaux
+   et le code propre à chaque niveau. Les routines s'appellent entre elles directement en Java.
+3. **Vérification.** Un petit interpréteur 68000 (`bubba.cpu.M68k`) sert de référence pendant le
+   développement : avec `-PverifyPorts`, chaque routine Java est rejouée sur le code original à
+   partir du même état, et la mémoire et les registres sont comparés, image par image. Les cas
+   rares sont testés par tirages au hasard (`bubba.dev.PortFuzz`).
 
 ### Avancement
 
-**Porté en Java**, vérifié sans aucune différence sur les 5 niveaux :
-- **Objets** :
-  - boucle des objets ;
-  - script de comportement et animations ;
-  - physique et collisions avec le décor ;
-  - naissance et mort des objets ;
-  - gros objets (plateformes, ascenseurs, portes) ;
-  - collisions entre objets solides.
-- **Bubba** :
-  - contacts avec les objets (bonus, dégâts) ;
-  - perte d'énergie.
-- **Décor** :
-  - caméra ;
-  - animation des blocs (lave, blocs animés par le niveau).
-- **Rendu et son**, entièrement en Java :
-  - décor et parallaxe ;
-  - sprites et barre d'état ;
-  - musiques ProTracker et bruitages.
+**Tout ce que le jeu exécute est en Java** : en jeu comme au démarrage d'un niveau,
+l'interpréteur n'exécute plus aucune instruction de l'original (mesuré par `bubba.dev.Coverage`
+sur 15 000 images de jeu aléatoire et les 5 niveaux). Toutes les routines portées sont vérifiées
+sans aucune différence avec l'original, y compris ses bizarreries, qui font partie du comportement
+du jeu.
 
-**Encore émulé** :
-- **Bubba** : sprite et machine d'états ;
-- **Stix** ;
-- **Barre d'état** : données calculées par le jeu ;
-- **Code propre à chaque niveau** ;
-- **Clavier**.
+**Reste à faire** :
+- la pause au clavier (le clavier n'est pas encore relié au jeu) ;
+- les états internes du jeu (registres du 68000) sont encore représentés comme tels : le code
+  Java suit l'original au plus près, il pourra être simplifié une fois la référence moins
+  nécessaire.
 
 ## Jouer
 

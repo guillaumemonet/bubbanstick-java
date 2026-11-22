@@ -42,6 +42,7 @@ public final class Ports {
         BlockAnims.register(PORTS);
         HeroSprite.register(PORTS);
         StatusValues.register(PORTS);
+        StixPort.register(PORTS);
         PORTS.put(0xdf38, AnimPort::run);
         PORTS.put(0xe6ec, BehaviourPort::engine0);
         PORTS.put(0xe4ea, BehaviourPort::engine4);
@@ -108,6 +109,17 @@ public final class Ports {
                         diff >= 0 ? orig[diff] & 0xff : 0, diff >= 0 ? ram.read8(diff) : 0,
                         badReg >= 0 ? String.format(", register %d 68k %X / java %X", badReg, origRegs[badReg],
                                 c.saveRegisters()[badReg]) : "");
+                // every differing byte (address: before / 68k / java), to locate the cause
+                StringBuilder b = new StringBuilder("   ");
+                int shown = 0;
+                for (int a = 0; a < orig.length && shown < 32; a++) {
+                    int j = ram.read8(a);
+                    if ((orig[a] & 0xff) != j) {
+                        b.append(String.format(" $%X:%02X/%02X/%02X", a, before[a] & 0xff, orig[a] & 0xff, j));
+                        shown++;
+                    }
+                }
+                System.err.println(b);
             }
             // keep the original's result so the game goes on exactly
             ram.restore(orig);

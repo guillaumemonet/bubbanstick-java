@@ -54,6 +54,13 @@ public final class Coverage {
             byRange.computeIfAbsent(pc & ~0xfff, k -> new TreeSet<>()).add(pc);
         }
         System.out.println("distinct instructions executed: " + all.size());
+        if (System.getProperty("coverage.out") != null) {
+            StringBuilder b = new StringBuilder();
+            for (int pc : all) {
+                b.append(String.format("%05x%n", pc));
+            }
+            java.nio.file.Files.writeString(Paths.get(System.getProperty("coverage.out")), b);
+        }
         byRange.forEach((a, s) -> System.out.printf("  $%05X-$%05X: %d%n", a, a + 0xfff, s.size()));
     }
 }

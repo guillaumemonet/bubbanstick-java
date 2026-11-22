@@ -60,6 +60,7 @@ public final class GameEmulator {
         ram.loadSet(level.setImage());
         LevelMemory.build(ram, level.info(), level.rawMap());
         cpu = new M68k(ram);
+        GameMemory.pcSource = () -> cpu.pc;
         cpu.trace = startTrace;
         cpu.hook(0x7bc8, c -> {
             onSound.accept(c.d[0] & 0xff);
@@ -243,6 +244,7 @@ public final class GameEmulator {
         if (ended) {
             return false;
         }
+        GameMemory.frame++;
         ram.write8(0x8269, joy);
         cpu.a[7] = GameMemory.STACK_TOP - 0x100;
         if (INVINCIBLE) { // cheat: the invulnerability timer kept running, energy and lives full

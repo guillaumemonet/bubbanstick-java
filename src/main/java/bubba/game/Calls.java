@@ -24,7 +24,8 @@ public final class Calls {
         M68k.Hook h = Ports.VERIFY ? null : c.hookAt(addr);
         if (h == null) {
             if (!Ports.VERIFY && INTERPRETED.add(addr)) {
-                System.err.printf("game routine $%05X has no Java port: run on the 68000 interpreter%n", addr);
+                System.err.printf("game routine $%05X has no Java port: run on the 68000 interpreter (frame %d)%n",
+                        addr, bubba.cpu.GameMemory.frame);
             }
             c.callNested(addr, 5_000_000, false);
             return;

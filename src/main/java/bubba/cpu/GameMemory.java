@@ -17,6 +17,42 @@ public final class GameMemory {
     private final byte[] ram = new byte[SIZE];
 
     /**
+     * Dev spy (-Dbubba.watch=108e9,10ad5, gradlew run -Pwatch): every change of these bytes is
+     * printed with the frame, the 68000 PC (when the interpreter runs) and the Java callers.
+     */
+    private static final java.util.BitSet WATCH = watchList(System.getProperty("bubba.watch"));
+    /** Program counter of the interpreter, for the spy. */
+    public static java.util.function.IntSupplier pcSource = () -> -1;
+    /** Frame number, for the spy and the reports. */
+    public static int frame;
+
+    private static java.util.BitSet watchList(String list) {
+        if (list == null || list.isBlank()) {
+            return null;
+        }
+        java.util.BitSet set = new java.util.BitSet();
+        for (String a : list.split("[,; ]+")) {
+            set.set(Integer.parseInt(a.replace("$", ""), 16) & 0xfffff);
+        }
+        System.err.println("[spy] watching " + list);
+        return set;
+    }
+
+    private static void report(int addr, int old, int v) {
+        StringBuilder sb = new StringBuilder(String.format(
+                "[spy] frame %d: $%05X %02X -> %02X, pc $%05X", frame, addr, old, v & 0xff, pcSource.getAsInt()));
+        int shown = 0;
+        for (StackTraceElement e : Thread.currentThread().getStackTrace()) {
+            String c = e.getClassName();
+            if (c.startsWith("bubba.") && !c.equals(GameMemory.class.getName()) && shown++ < 8) {
+                sb.append("\n        at ").append(c.substring(6)).append('.').append(e.getMethodName())
+                        .append(':').append(e.getLineNumber());
+            }
+        }
+        System.err.println(sb);
+    }
+
+    /**
      * Block graphics copied by the blitter (0xC6B4): the bitmaps are not in this memory (the
      * renderer has them as images), so a blit of graphics slot s onto slot d is kept as
      * {@code blockGfx[d] = blockGfx[s]} (slot = (address - $80000) / $80, identity at start).
@@ -59,6 +95,9 @@ public final class GameMemory {
     public void write8(int addr, int v) {
         addr &= 0xffffff;
         if (mapped(addr)) {
+            if (WATCH != null && WATCH.get(addr) && ram[addr] != (byte) v) {
+                report(addr, ram[addr] & 0xff, v);
+            }
             ram[addr] = (byte) v;
         }
     }

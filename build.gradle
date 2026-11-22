@@ -30,6 +30,11 @@ run {
     if (project.hasProperty('invincible')) {
         systemProperty 'bubba.invincible', 'true'
     }
+    // gradlew run -Pwatch (or -Pwatch=108e9,10ad5) : every change of these bytes is printed
+    if (project.hasProperty('watch') || project.hasProperty('invincible')) {
+        def w = project.findProperty('watch')
+        systemProperty 'bubba.watch', (w == null || w.toString().isEmpty() || w.toString() == 'true') ? '108e9,108e7,108e8' : w
+    }
     if (project.hasProperty('verifyPorts')) {
         systemProperty 'bubba.verifyPorts', 'true'
     }

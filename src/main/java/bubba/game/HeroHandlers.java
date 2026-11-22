@@ -1,0 +1,902 @@
+package bubba.game;
+
+import bubba.cpu.GameMemory;
+import bubba.cpu.M68k;
+
+import java.util.Map;
+
+/**
+ * Handlers of Bubba's state machine (table 0xA014, called by 0x9EFA with d0 = joystick byte and
+ * the condition codes loaded from it: C = up, V = down, Z = left, N = right, X = $10; d1 = sub
+ * state +$4E, a0 = $BDA6, a1 = Bubba). Exact ports at register level, like {@link HeroPhysics}.
+ * <p>
+ * A branch to code not ported yet is replaced by a call of that code on the interpreter: it ends
+ * with the handler's own RTS, so calling it then returning is the same.
+ * <p>
+ * Work area at $BDA6 (a0): +0 timer, +2 counter, +4 animation script pointer, +8 delay,
+ * +$A / +$B last idle animations, +$C previous state, +$E flag.
+ */
+final class HeroHandlers {
+
+    private static final int[] ALL = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
+
+    private HeroHandlers() {
+    }
+
+    private interface Body {
+        void run(R r);
+    }
+
+    private static void port(Map<Integer, Ports.Port> ports, int addr, Body body) {
+        ports.put(addr, new Ports.Port() {
+            @Override
+            public void run(M68k c) {
+                R r = new R(c);
+                body.run(r);
+                r.sync();
+            }
+
+            @Override
+            public int[] outputs() {
+                return ALL;
+            }
+        });
+    }
+
+    static void register(Map<Integer, Ports.Port> ports) {
+        port(ports, 0xa3b2, R::state00);
+        port(ports, 0xa54a, R::state02);
+        port(ports, 0xa6c4, R::state04);
+        port(ports, 0xa706, R::state06);
+        port(ports, 0xa9f4, R::state08);
+        port(ports, 0xaa88, R::state0a);
+    }
+
+    private static int sw(int reg, int v) {
+        return (reg & 0xffff0000) | (v & 0xffff);
+    }
+
+    private static int sb(int reg, int v) {
+        return (reg & 0xffffff00) | (v & 0xff);
+    }
+
+    /** Registers and routines. */
+    static final class R {
+        final M68k c;
+        final GameMemory m;
+        int d0, d1, d2, d3, d4, d5, d6, d7, a0, a1, a2, a3, a4, a5, a6;
+
+        R(M68k c) {
+            this.c = c;
+            m = c.mem;
+            load();
+        }
+
+        void load() {
+            d0 = c.d[0];
+            d1 = c.d[1];
+            d2 = c.d[2];
+            d3 = c.d[3];
+            d4 = c.d[4];
+            d5 = c.d[5];
+            d6 = c.d[6];
+            d7 = c.d[7];
+            a0 = c.a[0];
+            a1 = c.a[1];
+            a2 = c.a[2];
+            a3 = c.a[3];
+            a4 = c.a[4];
+            a5 = c.a[5];
+            a6 = c.a[6];
+        }
+
+        void sync() {
+            c.d[0] = d0;
+            c.d[1] = d1;
+            c.d[2] = d2;
+            c.d[3] = d3;
+            c.d[4] = d4;
+            c.d[5] = d5;
+            c.d[6] = d6;
+            c.d[7] = d7;
+            c.a[0] = a0;
+            c.a[1] = a1;
+            c.a[2] = a2;
+            c.a[3] = a3;
+            c.a[4] = a4;
+            c.a[5] = a5;
+            c.a[6] = a6;
+        }
+
+        /** Code not ported yet: run it on the interpreter (it returns with the handler's RTS). */
+        void jump(int addr) {
+            sync();
+            Calls.call(c, addr);
+            load();
+        }
+
+        int r8(int a) {
+            return m.read8(a);
+        }
+
+        int r16(int a) {
+            return m.read16(a);
+        }
+
+        int s16(int a) {
+            return (short) m.read16(a);
+        }
+
+        int r32(int a) {
+            return m.read32(a);
+        }
+
+        void w8(int a, int v) {
+            m.write8(a, v);
+        }
+
+        void w16(int a, int v) {
+            m.write16(a, v);
+        }
+
+        void w32(int a, int v) {
+            m.write32(a, v);
+        }
+
+        boolean up() {
+            return (d0 & 1) != 0;
+        }
+
+        boolean down() {
+            return (d0 & 2) != 0;
+        }
+
+        boolean left() {
+            return (d0 & 4) != 0;
+        }
+
+        boolean right() {
+            return (d0 & 8) != 0;
+        }
+
+        // ---------------------------------------------------------------- shared
+
+        /** 0xA318: new state d0 (+$6C = walking, +$5B from the bit table 0xA340). */
+        void setState() {
+            w16(a1 + 0x4c, 0);
+            w16(a1 + 0x5a, 0);
+            w8(a1 + 0x6c, (d0 & 0xffff) == 2 ? 0xff : 0);
+            w16(a0 - 2, d0);
+            d0 = sw(d0, (d0 & 0xffff) >>> 1);
+            d2 = sw(d2, d0);
+            d0 = sw(d0, d0 & 7);
+            d2 = sw(d2, (d2 & 0xffff) >>> 3);
+            boolean bit = (r8(0xa340 + (short) d2) & (1 << (d0 & 7))) != 0;
+            w8(a1 + 0x5b, bit ? 0xff : 0);
+        }
+
+        /** 0xA510: x speed towards 0 by $7BB4. */
+        void brake() {
+            a2 = a1 + 0x28;
+            int v = r32(a2);
+            if ((short) (v >>> 16) < 0) {
+                v += 0x7bb4;
+                w32(a2, v < 0 ? v : 0);
+            } else {
+                v -= 0x7bb4;
+                w32(a2, v >= 0 ? v : 0);
+            }
+        }
+
+        /** 0xA540: back to the previous state's sub-state, state 4. */
+        void a540() {
+            w16(a0, r16(0xbda4));
+            d0 = 4;
+            setState();
+        }
+
+        /** 0xA674: jump (up pressed). */
+        void a674() {
+            d0 = 0xff001078;
+            d1 = 0;
+            a67c();
+        }
+
+        void a67c() {
+            d2 = 0x40000;
+            if ((r8(a1 + 0x57) & 0x80) != 0) {
+                d2 = 0x60000;
+            }
+            w32(a0, d0);
+            w32(a0 + 4, d2);
+            w32(a0 + 8, -d2);
+            d2 = -d2;
+            d0 = 6;
+            setState();
+        }
+
+        /** 0xA6A8: in the air. */
+        void a6a8() {
+            if (s16(a1 + 0x2c) < 0) {
+                d0 = 0x1078;
+                d1 = 2;
+            } else {
+                d0 = 0x1001078;
+                d1 = 4;
+            }
+            a67c();
+        }
+
+        // ---------------------------------------------------------------- calls
+
+        /** 0xAAD0: sound d2 with pan d3 (d0-d1 / a0-a1 kept, a5 = Bubba). */
+        void sound() {
+            int s0 = d0, s1 = d1, sa0 = a0, sa1 = a1;
+            d1 = sw(d1, d3);
+            d0 = sw(d0, d2);
+            a5 = a1;
+            jump(0x7bc8);
+            d0 = s0;
+            d1 = s1;
+            a0 = sa0;
+            a1 = sa1;
+        }
+
+        /** bsr to a routine with d1 / a0 / a1 saved around it (movem). */
+        void callKeeping(int addr) {
+            int s1 = d1, sa0 = a0, sa1 = a1;
+            jump(addr);
+            d1 = s1;
+            a0 = sa0;
+            a1 = sa1;
+        }
+
+        // ---------------------------------------------------------------- state 2: walking
+
+        /** 0xA54A. */
+        void state02() {
+            if (r8(a1 + 0x72) == 0) {
+                a6a8();
+                return;
+            }
+            d3 = 0x40000;
+            d4 = d3;
+            d5 = d3;
+            if ((r8(a1 + 0x57) & 0x80) != 0) { // running
+                d3 = 0x7bb4;
+                d4 = d3;
+                d3 += d3;
+                d5 = 0x80000;
+            }
+            if (up()) {
+                a674();
+                return;
+            }
+            if (down()) {
+                ab94();
+                return;
+            }
+            if (left()) {
+                d5 = -d5;
+                if ((r8(a1 + 0x55) & 0x80) == 0) {
+                    a530();
+                    return;
+                }
+                d2 = r32(a1 + 0x28);
+                if (d2 == 0) {
+                    d2 = 0xfffe0000;
+                } else {
+                    d2 -= d3;
+                    if (d2 < d5) {
+                        d2 = d5;
+                    }
+                }
+            } else if (right()) {
+                if ((r8(a1 + 0x55) & 0x80) != 0) {
+                    a530();
+                    return;
+                }
+                d2 = r32(a1 + 0x28);
+                if (d2 == 0) {
+                    d2 = 0x20000;
+                } else {
+                    d2 += d3;
+                    if (d2 > d5) {
+                        d2 = d5;
+                    }
+                }
+            } else {
+                a60e();
+                return;
+            }
+            // 0xA5C0
+            if ((r8(a1 + 0x57) & 0x80) == 0 && s16(a0) > 0) {
+                w16(a0, r16(a0) - 1);
+            }
+            a5d6();
+        }
+
+        /** 0xA530: turning round while walking. */
+        private void a530() {
+            d1 = sb(d1, r8(a1 + 0x57));
+            if ((d1 & 0x80) == 0) {
+                w32(a1 + 0x28, 0);
+            }
+            d1 = sw(d1, -2 * (byte) d1);
+            a540();
+        }
+
+        /** 0xA5D6: speed set, walk animation. */
+        private void a5d6() {
+            w32(a1 + 0x28, d2);
+            d2 = sw(d2, r16(a1 + 6) - 0x10 - r16(0x10a5e));
+            if ((short) d2 >= 0) {
+                w16(a0, 6);
+                w8(a1 + 0x57, 0);
+            }
+            int v = ~r8(a1 + 0x4c) & 0xff;
+            w8(a1 + 0x4c, v);
+            if ((v & 0x80) != 0) {
+                return;
+            }
+            d2 = 2;
+            d3 = 0x12;
+            if ((r8(a1 + 0x57) & 0x80) != 0) {
+                d2 = 0x12;
+                d3 = 0x1e;
+            }
+            d1 = sw(d1, d1 + 2);
+            if ((short) d1 >= (short) d3) {
+                d1 = sw(d1, d2);
+            }
+        }
+
+        /** 0xA60E: no direction: slowing down. */
+        private void a60e() {
+            d2 = r32(a1 + 0x28);
+            boolean stop;
+            if (d2 >= 0) {
+                d2 -= d4;
+                stop = d2 <= 0x8000;
+            } else {
+                d2 += d4;
+                stop = d2 >= 0xffff8000;
+            }
+            if (stop) {
+                if (s16(a0) > 0) {
+                    a652();
+                } else {
+                    w16(a0 + 0xc, 4);
+                    a656();
+                }
+                return;
+            }
+            // 0xA62A
+            if ((r8(a1 + 0x57) & 0x80) == 0) {
+                w16(a0, 6);
+                a5d6();
+                return;
+            }
+            d3 = d2 < 0 ? -d2 : d2;
+            if (d3 > 0x40000) {
+                a5d6();
+                return;
+            }
+            w8(a1 + 0x57, 0);
+            d1 = 0;
+            w8(a1 + 0x4c, 0xff);
+            w16(a0, 6);
+            a5d6();
+        }
+
+        /** 0xA652: standing again. */
+        private void a652() {
+            w16(a0 + 0xc, 0);
+            a656();
+        }
+
+        private void a656() {
+            w32(a1 + 0x28, 0);
+            w8(a1 + 0x57, 0);
+            d2 = sw(d2, 0);
+            d2 = sb(d2, r8(0x10894));
+            d2 = sw(d2, d2 + 0xfa);
+            w32(a0, 0);
+            w16(a0, d2);
+            d1 = 0;
+            d0 = 0;
+            setState();
+        }
+
+        // ---------------------------------------------------------------- state 4: turning
+
+        /** 0xA6C4. */
+        void state04() {
+            int v = ~r8(a1 + 0x4c) & 0xff;
+            w8(a1 + 0x4c, v);
+            if ((v & 0x80) != 0) {
+                return;
+            }
+            w8(a1 + 0x55, ~r8(a1 + 0x55));
+            a6ce();
+        }
+
+        /** 0xA6CE. */
+        private void a6ce() {
+            d2 = r32(a1 + 0x28);
+            if (d2 < 0) {
+                d2 = -d2;
+            }
+            d0 = sw(d0, r16(a0));
+            d1 = 6;
+            if ((d0 & 0xffff) == 0xc) {
+                ab96();
+                return;
+            }
+            if (d2 <= 0x8000) {
+                a652();
+                return;
+            }
+            d1 = 2;
+            boolean run = d2 > 0x40000;
+            w8(a1 + 0x57, run ? 0xff : 0);
+            if (run) {
+                d1 = 0x12;
+            }
+            w16(a0, 6);
+            d0 = 2;
+            setState();
+        }
+
+        // ---------------------------------------------------------------- state 6: jumping
+
+        /** 0xA706. */
+        void state06() {
+            if (left()) {
+                w8(a1 + 0x55, 0xff);
+                d2 = r32(a1 + 0x28);
+                if (d2 == 0) {
+                    d2 = 0xfffe0000;
+                } else {
+                    int lim = r32(a0 + 8);
+                    if (d2 < lim) {
+                        brake();
+                        a756();
+                        return;
+                    }
+                    if (d2 == lim) {
+                        a756();
+                        return;
+                    }
+                    d2 -= 0x8000;
+                }
+                w32(a1 + 0x28, d2);
+                a756();
+                return;
+            }
+            if (!right()) {
+                brake();
+                a756();
+                return;
+            }
+            w8(a1 + 0x55, 0);
+            d2 = r32(a1 + 0x28);
+            if (d2 == 0) {
+                d2 = 0x20000;
+            } else {
+                int lim = r32(a0 + 4);
+                if (d2 > lim) {
+                    brake();
+                    a756();
+                    return;
+                }
+                if (d2 == lim) {
+                    a756();
+                    return;
+                }
+                d2 += 0x8000;
+            }
+            w32(a1 + 0x28, d2);
+            a756();
+        }
+
+        /** 0xA756: the jump phases (+0 of the work area). */
+        private void a756() {
+            d2 = sb(d2, r8(a0));
+            int ph = (byte) d2;
+            if (ph < 0) {
+                int v = ~r8(a1 + 0x4c) & 0xff;
+                w8(a1 + 0x4c, v);
+                if ((v & 0x80) != 0) {
+                    return;
+                }
+                if ((r8(a0 + 1) & 0x80) != 0) {
+                    w32(a1 + 0x2c, 0xfff00000);
+                } else if (r8(a1 + 0x74) != 0) {
+                    w32(a1 + 0x2c, 0xfff70000);
+                } else {
+                    w32(a1 + 0x2c, 0xfff44000);
+                }
+                w8(a1 + 0x72, 0);
+                d1 = 2;
+                w8(a0, r8(a0) + 1);
+                return;
+            }
+            if (ph == 0) {
+                if (r32(a1 + 0x2c) <= 0xfffd0000) {
+                    return;
+                }
+                w8(a0, r8(a0) + 1);
+            }
+            // 0xA768
+            d2 = sb(d2, d2 - 2);
+            if ((d2 & 0xff) == 0) {
+                a7fe();
+                return;
+            }
+            if (r8(a1 + 0x72) != 0) {
+                a7c8();
+                return;
+            }
+            if ((short) d1 >= 0xc) {
+                if (s16(a1 + 0x2c) >= 0) {
+                    return;
+                }
+                w8(a0, 0);
+                d1 = 2;
+                return;
+            }
+            int v = ~r8(a1 + 0x4c) & 0xff;
+            w8(a1 + 0x4c, v);
+            if ((v & 0x80) != 0) {
+                return;
+            }
+            d1 = sw(d1, d1 + 2);
+        }
+
+        /** 0xA7C8: landing. */
+        private void a7c8() {
+            w16(a1 + 0x16, 0xffc0);
+            w16(a1 + 0x1a, 0x40);
+            d2 = sw(d2, r16(0x108b6));
+            if ((d2 & 0xffff) == 0 && r8(0x10aba) != 0) {
+                jump(0xb31e);
+                return;
+            }
+            d0 &= ~1;
+            w8(a0, r8(a0) + 1);
+            d2 = 7;
+            d3 = 0; // 0xAACE
+            sound();
+            if (s16(a1 + 0x58) >= 0xc) {
+                w16(a0 + 2, 0x418);
+            }
+            a7fe();
+        }
+
+        /** 0xA7FE. */
+        private void a7fe() {
+            if (r8(a1 + 0x72) == 0) {
+                a6a8();
+                return;
+            }
+            if (down()) {
+                ab94();
+                return;
+            }
+            if (up()) {
+                a674();
+                return;
+            }
+            d1 = 0;
+            int v = (r16(a0 + 2) << 1) & 0xffff;
+            w16(a0 + 2, v);
+            if ((v & 0x8000) != 0) {
+                a6ce();
+                return;
+            }
+            if ((r8(a0 + 3) & 0x80) == 0) {
+                return;
+            }
+            d1 = 0xe;
+        }
+
+        // ---------------------------------------------------------------- states 8 / A: Stix
+
+        /** 0xA9F4: throwing Stix. */
+        void state08() {
+            int v = ~r8(a1 + 0x4c) & 0xff;
+            w8(a1 + 0x4c, v);
+            if ((v & 0x80) != 0) {
+                return;
+            }
+            if ((short) d1 >= 0x20 && r8(a1 + 0x72) != 0 && r32(a1 + 0x28) == 0) {
+                d1 = sw(d1, d1 - 0x1e);
+            }
+            if (r16(a0 + 0x10) == 4) {
+                d2 = 5;
+                d3 = sw(d3, 0x8c);
+                sound();
+            }
+            d1 = sw(d1, d1 + 2);
+            int t = (short) (r16(a0 + 0x10) - 1);
+            w16(a0 + 0x10, t);
+            if (t <= 0) {
+                aa46();
+                return;
+            }
+            if (r16(a0 + 0x10) == 2) {
+                d7 = 0;
+                int s1 = d1, sa0 = a0, sa1 = a1;
+                w8(a1 + 0x56, 0);
+                jump(0xbdea); // Stix leaves the hand
+                d1 = s1;
+                a0 = sa0;
+                a1 = sa1;
+            }
+        }
+
+        /** 0xAA88: hitting with Stix. */
+        void state0a() {
+            int v = ~r8(a1 + 0x4c) & 0xff;
+            w8(a1 + 0x4c, v);
+            if ((v & 0x80) == 0) {
+                if ((short) d1 >= 0x2a && r8(a1 + 0x72) != 0) {
+                    d1 = sw(d1, d1 - 0x2a);
+                }
+                d1 = sw(d1, d1 + 2);
+                int t = (short) (r16(a0 + 0x10) - 1);
+                w16(a0 + 0x10, t);
+                if (t <= 0) {
+                    aa46();
+                    return;
+                }
+                w16(a0 + 0x18, r16(a0 + 0x18) - 1);
+                if (r16(a0 + 0x18) == 1) {
+                    d2 = 5;
+                    d3 = 0;
+                    sound();
+                }
+            }
+            if (r16(a0 + 0x18) > 1) {
+                return;
+            }
+            callKeeping(0xf7fe);
+        }
+
+        /** 0xAA46: end of the throw / hit, back to the state saved in +$C (sub-state +$E). */
+        private void aa46() {
+            d2 = sw(d2, d0);
+            d0 = s16(a0 + 0xc);
+            d1 = s16(a0 + 0xe);
+            if ((d0 & 0xffff) == 0x10) {
+                if ((d2 & 1) != 0) {
+                    setState();
+                } else {
+                    a652();
+                }
+                return;
+            }
+            if ((d0 & 0xffff) == 0) {
+                a652();
+                return;
+            }
+            if ((d0 & 0xffff) != 6) {
+                setState();
+                return;
+            }
+            if (s16(a1 + 0x2c) < 0) {
+                w8(a0, 0);
+                d1 = 2;
+                setState();
+                return;
+            }
+            if (r8(a1 + 0x72) == 0) {
+                setState();
+                return;
+            }
+            a6ce();
+        }
+
+        // ---------------------------------------------------------------- state C entry
+
+        /** 0xAB94 / 0xAB96: crouching. */
+        void ab94() {
+            d1 = 4;
+            ab96();
+        }
+
+        private void ab96() {
+            w8(a1 + 0x72, 0xff);
+            w32(a1 + 0x2c, r32(a1 + 0x60));
+            w16(a1 + 0x16, 0xffe0);
+            w16(a1 + 0x1a, 0x20);
+            w16(a0, 2);
+            w16(a0 + 6, 1);
+            d3 = 0;
+            d2 = r32(a1 + 0x28);
+            boolean zero;
+            if (d2 < 0) {
+                d2 += 0x20000;
+                zero = d2 >= 0;
+            } else {
+                d2 -= 0x20000;
+                zero = d2 <= 0;
+            }
+            if (zero) {
+                d2 = 0;
+                w16(a0 + 6, r16(a0 + 6) + 1);
+            }
+            d2 >>= 2;
+            w32(a0 + 2, d2);
+            d0 = 0xc;
+            setState();
+        }
+
+        // ---------------------------------------------------------------- state 0: standing
+
+        /** 0xA3B2. */
+        void state00() {
+            if (r8(a1 + 0x72) == 0) {
+                a6a8();
+                return;
+            }
+            if (left()) {
+                if ((r8(a1 + 0x55) & 0x80) == 0) {
+                    a40a();
+                    return;
+                }
+                w32(a1 + 0x28, 0xfffe0000);
+                startWalk();
+                return;
+            }
+            if (right()) {
+                if ((r8(a1 + 0x55) & 0x80) != 0) {
+                    a40a();
+                    return;
+                }
+                w32(a1 + 0x28, 0x20000);
+                startWalk();
+                return;
+            }
+            if (up()) {
+                a674();
+                return;
+            }
+            if (down()) {
+                ab94();
+                return;
+            }
+            d2 = sb(d2, r8(0x108e9));
+            if ((d2 & 0xff) != 0) {
+                d2 = sb(d2, s16(a1 + 2) > 0x230 ? 0xff : 0);
+                d3 = sb(d3, r8(a1 + 0x55));
+                d2 = sb(d2, d2 ^ d3);
+                if ((d2 & 0x80) != 0) {
+                    a40a();
+                    return;
+                }
+                d1 = 0;
+                d0 = 0x36;
+                setState();
+                return;
+            }
+            idle();
+        }
+
+        /** 0xA3DE. */
+        private void startWalk() {
+            w16(a0, 6);
+            d1 = 2;
+            boolean run = s16(a0 + 0xc) > 0;
+            w8(a1 + 0x57, run ? 0xff : 0);
+            if (run) {
+                w16(a0, 0);
+                d1 = 0x12;
+            }
+            d3 = 0x40000;
+            if ((r8(a1 + 0x55) & 0x80) != 0) {
+                d3 = -d3;
+            }
+            w32(a1 + 0x28, d3);
+            d0 = 2;
+            setState();
+        }
+
+        /** 0xA40A: turning round. */
+        private void a40a() {
+            d1 = 2;
+            if (r32(a1 + 0x28) != 0) {
+                a540();
+                return;
+            }
+            d0 = 0xe;
+            setState();
+        }
+
+        /** 0xA440: no direction: idle animations. */
+        private void idle() {
+            if (s16(a0 + 0xc) > 0) {
+                w16(a0 + 0xc, r16(a0 + 0xc) - 1);
+            }
+            a2 = 0x10a67;
+            d2 = sb(d2, r8(a2));
+            if ((d2 & 0xff) != 0) {
+                d2 = sb(d2, (d2 & 0x80) != 0 ? 0xff : 0);
+                w8(a2, 0);
+                if ((d2 & 0xff) == r8(a1 + 0x55)) {
+                    boolean push;
+                    if ((d2 & 0x80) != 0) {
+                        push = !(r32(a1 + 0x40) > 0xfffe0000);
+                    } else {
+                        push = !(r32(a1 + 0x40) < 0x20000);
+                    }
+                    if (push) {
+                        d1 = 0x2e;
+                        brake();
+                        return;
+                    }
+                }
+            }
+            if ((d1 & 0xffff) == 0x2e) {
+                d1 = 0;
+            }
+            int t = (short) (r16(a0) - 1);
+            w16(a0, t);
+            if (t > 0) {
+                brake();
+                return;
+            }
+            if (t == 0) {
+                w16(a0 + 2, r16(a0 + 2) + 1);
+                d2 = sw(d2, r16(0x10894) & 6);
+                if ((d2 & 0xff) == r8(a0 + 0xa)) {
+                    d2 = sw(d2, (d2 + 2) & 6);
+                }
+                while (true) {
+                    if (s16(a0 + 2) < 7) {
+                        w8(a0 + 0xa, d2);
+                        w8(a0 + 0xe, 0);
+                        break;
+                    }
+                    if ((d2 & 0xff) == r8(a0 + 0xb) || (r8(a1 + 0x56) == 0 && (d2 & 0xffff) == 2)) {
+                        d2 = sw(d2, (d2 + 2) & 6);
+                        continue;
+                    }
+                    w8(a0 + 0xb, d2);
+                    w16(a0 + 2, 0);
+                    d2 = sw(d2, d2 + 8);
+                    w8(a0 + 0xe, 0xff);
+                    break;
+                }
+                a2 = 0xa344 + s16(0xa344 + (short) d2);
+                w32(a0 + 4, a2);
+                w8(a0 + 8, 0);
+            }
+            // 0xA4E6: animation script (frame, delay) pairs, 0 = end
+            int dl = (byte) (r8(a0 + 8) - 1);
+            w8(a0 + 8, dl);
+            if (dl > 0) {
+                brake();
+                return;
+            }
+            a2 = r32(a0 + 4);
+            d1 = sw(d1, 0);
+            d1 = sb(d1, r8(a2));
+            a2++;
+            if ((d1 & 0xff) == 0) {
+                d2 = sw(d2, 0);
+                d2 = sb(d2, (r8(0x10894) & 0xff) >>> 2);
+                d2 = sw(d2, d2 + 0x19);
+                w16(a0, d2);
+                brake();
+                return;
+            }
+            w8(a0 + 8, r8(a2));
+            a2++;
+            d1 = sw(d1, d1 * 2);
+            w32(a0 + 4, a2);
+            brake();
+        }
+    }
+}

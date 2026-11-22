@@ -148,7 +148,12 @@ public final class Ports {
 
     /** Runs the Java port of the routine at addr (dev tools: fuzzing against the original). */
     public static void runJava(M68k c, int addr) {
-        PORTS.get(addr).run(c);
+        Port p = PORTS.get(addr);
+        if (p != null) {
+            p.run(c);
+        } else {
+            c.hookAt(addr).run(c); // level ports, installed on the processor
+        }
     }
 
     public static void install(M68k cpu) {

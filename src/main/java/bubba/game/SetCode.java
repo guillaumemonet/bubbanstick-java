@@ -362,9 +362,23 @@ final class SetCode {
         GameMemory m = c.mem;
         m.write16(c.a[0] - 0x10, 0);
         c.a[0] = 0x10ad9;
-        if (m.read8(c.a[0]) != 0) {
-            Calls.call(c, 0x12c24);
+        if (m.read8(c.a[0]) == 0) {
+            return;
         }
+        // 0x12C24: the other half of the map ($10A42 inverted), objects reloaded
+        m.write8(c.a[0], 0);
+        c.a[0]--;
+        m.write8(c.a[0], 0);
+        c.a[0] = 0x10a42;
+        m.write16(c.a[0], ~m.read16(c.a[0]));
+        c.d[0] = sb(c.d[0], m.read8(0x12c57));
+        int saved = c.d[0] & 0xffff;
+        Calls.call(c, 0x1258c);
+        c.d[0] = sw(c.d[0], saved);
+        c.a[0] = 0x11139;
+        m.write8(c.a[0] + 0x1b1e, c.d[0]);
+        m.write8(c.a[0], 0);
+        Calls.call(c, 0x102c4);
     }
 
     /** $1302E: object native: bouncing, speed kept in +$44. */

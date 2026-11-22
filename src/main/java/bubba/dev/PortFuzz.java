@@ -43,6 +43,10 @@ public final class PortFuzz {
             c.restoreRegisters(regs);
             if (routine >= 0xa318 && routine < 0xbea8) {
                 setupHero(c, m, rnd, routine);
+            } else if (routine == 0x12c18) { // stage 2 callback: map switch requested or not
+                m.write8(0x10ad9, rnd.nextInt(2));
+                m.write8(0x12c57, rnd.nextInt(256));
+                c.a[0] = 0xc750 + 2 + 0x16;
             } else if (routine == 0xbea8) {
                 setupStix(m, rnd);
             } else {

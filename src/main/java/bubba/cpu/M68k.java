@@ -49,6 +49,11 @@ public final class M68k {
      * (used to run the original code of a ported routine for comparison). With
      * {@code bypassEntryHook}, the hook at {@code addr} itself is ignored (the original runs).
      */
+    /** The hook installed at addr (null if none). */
+    public Hook hookAt(int addr) {
+        return hooks.get(addr);
+    }
+
     public void callNested(int addr, int maxSteps, boolean bypassEntryHook) {
         push32(NESTED_SENTINEL);
         pc = addr;

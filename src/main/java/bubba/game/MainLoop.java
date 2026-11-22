@@ -56,15 +56,17 @@ public final class MainLoop {
         }
         d[0] = sb(d[0], m.read8(0x4050));
         if ((d[0] & 0xff) != 0) {
-            throw new IllegalStateException("pause mode (0x3B9C) not supported");
+            pause(m);
+            return true;
         }
         Calls.call(c, 0x79ce); // keyboard
         if (!c.z) {
             int key = d[0] & 0xff;
-            if (key == 0xe6) {
-                throw new IllegalStateException("pause key (0x3B9C) not supported");
+            if (key == KEY_P) {
+                pause(m);
+                return true;
             }
-            if (key == 0xba) { // give up the level
+            if (key == KEY_ESC) { // give up the level
                 m.write8(0x8278, 0xff);
                 m.write8(0x10abc, 0xff);
                 m.write16(0x10ac4, 0);
@@ -72,6 +74,45 @@ public final class MainLoop {
                 m.write8(0x827f, 0);
             }
         }
+        return rest(c);
+    }
+
+    /** Keys as the keyboard interrupt (0x799E) stores them: the raw code inverted. */
+    public static final int KEY_P = 0xe6, KEY_ESC = 0xba;
+
+    /** True while the game waits in its pause loop (0x3B9C). */
+    public static boolean paused(GameMemory m) {
+        return m.read8(0x826b) != 0;
+    }
+
+    /** 0x3B9C: the pause starts; the loop waits for a key ({@link #paused(M68k)}). */
+    private static void pause(GameMemory m) {
+        m.write8(0x8270, 0);
+        m.write8(0x826b, 0xff);
+        m.write8(0x826c, 0);
+    }
+
+    /**
+     * One turn of the pause loop (0x3BAE): nothing moves until a key is read; then the frame
+     * goes on where the pause stopped it (0x3BC0). Returns false when the level is over.
+     */
+    public static boolean paused(M68k c) {
+        GameMemory m = c.mem;
+        m.write8(0x8270, 0);
+        m.write8(0x826c, 0);
+        Calls.call(c, 0x79ce);
+        if (c.z) {
+            return true;
+        }
+        m.write8(0x826b, 0);
+        m.write8(0x827e, 0);
+        return rest(c);
+    }
+
+    /** 0x3BC0: the rest of the frame (objects, hero, camera, display lists). */
+    private static boolean rest(M68k c) {
+        GameMemory m = c.mem;
+        int[] d = c.d, a = c.a;
         Calls.call(c, 0xc6b4);
         Calls.call(c, 0xdee0);
         a[0] = 0x1750b;

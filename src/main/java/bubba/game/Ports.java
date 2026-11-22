@@ -84,6 +84,29 @@ public final class Ports {
                 return new int[]{0, 1, 8, 9};
             }
         });
+        PORTS.put(0x79ce, new Port() { // next key of the keyboard buffer $7EE4 (8 bytes)
+            @Override
+            public void run(M68k c) {
+                GameMemory m = c.mem;
+                c.a[0] = 0x7ee2;
+                int r = m.read16(0x7ee2);
+                c.d[1] = (c.d[1] & 0xffff0000) | r;
+                if (r == m.read16(0x7ee0)) {
+                    c.d[0] = 0;
+                    c.z = true;
+                    return;
+                }
+                c.d[0] = (c.d[0] & 0xffffff00) | m.read8(0x7ee4 + (short) r);
+                m.write16(0x7ee2, (r + 1) & 7);
+                c.d[1] = 1;
+                c.z = false;
+            }
+
+            @Override
+            public int[] outputs() {
+                return new int[]{0, 1, 8};
+            }
+        });
         PORTS.put(0x79ee, new Port() { // display request (palette fade) at $42A2
             @Override
             public void run(M68k c) {

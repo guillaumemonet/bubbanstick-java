@@ -23,14 +23,16 @@ import java.awt.Shape;
  * pixels, 19 pixels right of and 4 lines below a standard 320 x 256 PAL screen. Hero sprite:
  * screen x = x + $91 - camera x (hardware), i.e. x - camera x - 3 in the window; y - camera y.
  * <p>
- * Keys: arrows/WASD = joystick, Space/Ctrl/Enter = fire, Esc = title, N = next stage,
- * B = debug overlay. Still to come: parallax, sounds.
+ * Keys: arrows/WASD = joystick, Space/Ctrl/Enter = fire, P = pause (the original's: any key
+ * goes on), Esc = title, N = next stage, B = debug overlay.
  */
 public final class LevelScene implements Scene {
 
     private static final int VIEW_X = 19, VIEW_Y = 4, VIEW_W = 284, VIEW_H = 208;
     /** Hardware sprite / window offset: $91 - $94. */
     private static final int SCREEN_DX = -3;
+    /** Space as the keyboard interrupt stores it (raw $40 inverted). */
+    private static final int KEY_SPACE = 0xbf;
 
     private final int stage;
     private final int startLives, startEnergy;
@@ -111,6 +113,12 @@ public final class LevelScene implements Scene {
         }
         if (failure != null) {
             return;
+        }
+        // keyboard of the original: P = pause (code 0x3B6E); in the pause, any key goes on
+        if (input.pressed(Button.PAUSE)) {
+            emu.key(bubba.game.MainLoop.KEY_P);
+        } else if (emu.paused() && input.pressed(Button.FIRE)) {
+            emu.key(KEY_SPACE);
         }
         int joy = 0;
         if (input.isDown(Button.UP)) {

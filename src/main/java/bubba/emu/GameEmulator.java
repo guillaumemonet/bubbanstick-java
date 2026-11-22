@@ -75,7 +75,7 @@ public final class GameEmulator {
             }
         });
         cpu.hook(0x8470, c -> { });          // BOB display: done in Java
-        cpu.hook(0x79ce, c -> c.z = true);   // keyboard: no key pressed
+        ram.write32(0x7ee0, 0);              // keyboard buffer empty (code 0x3AE4)
         bubba.game.Ports.install(cpu);       // routines already ported to Java
         bubba.game.Ports.installNatives(cpu, level); // the level's own routines ported so far
         ram.write16(0x3b2c, 0x4e71);         // VBL waits of the main loop -> nop
@@ -288,7 +288,9 @@ public final class GameEmulator {
             }
         }
         boolean go;
-        if (bubba.game.Ports.VERIFY) {
+        if (bubba.game.MainLoop.paused(ram)) {
+            go = bubba.game.MainLoop.paused(cpu); // the pause loop (0x3B9C) until a key
+        } else if (bubba.game.Ports.VERIFY) {
             go = verifiedFrame();
         } else {
             go = bubba.game.MainLoop.frame(cpu); // the main loop in Java
@@ -297,6 +299,28 @@ public final class GameEmulator {
         bubba.game.Fades.vbl(ram); // two VBLs per logic frame (the interrupt's palette fades)
         bubba.game.Fades.vbl(ram);
         return go;
+    }
+
+    /**
+     * A key press, as the keyboard interrupt (0x799E) records it: the raw Amiga code inverted
+     * ({@link bubba.game.MainLoop#KEY_P}...) into the 8-byte buffer $7EE4, unless it is the
+     * same byte as the last one ($826E); the release follows.
+     */
+    public void key(int stored) {
+        if (ram.read8(0x826e) != stored) {
+            int w = ram.read16(0x7ee0);
+            ram.write8(0x7ee4 + w, stored);
+            w = (w + 1) & 7;
+            if (w != ram.read16(0x7ee2)) {
+                ram.write16(0x7ee0, w);
+            }
+        }
+        ram.write8(0x826e, stored & 0x7f); // key up: bit 7 clear, not stored
+    }
+
+    /** True while the game waits in its pause loop. */
+    public boolean paused() {
+        return bubba.game.MainLoop.paused(ram);
     }
 
     private boolean mainLoopReported;

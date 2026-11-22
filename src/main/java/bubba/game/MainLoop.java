@@ -1,5 +1,7 @@
 package bubba.game;
 
+import static bubba.game.Regs.*;
+
 import bubba.cpu.GameMemory;
 import bubba.cpu.M68k;
 
@@ -11,14 +13,6 @@ import bubba.cpu.M68k;
 public final class MainLoop {
 
     private MainLoop() {
-    }
-
-    private static int sw(int reg, int v) {
-        return (reg & 0xffff0000) | (v & 0xffff);
-    }
-
-    private static int sb(int reg, int v) {
-        return (reg & 0xffffff00) | (v & 0xff);
     }
 
     /** One frame; returns false when the level is over (the original goes to 0x3CF0). */

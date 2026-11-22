@@ -1,5 +1,7 @@
 package bubba.game;
 
+import static bubba.game.Regs.*;
+
 import bubba.cpu.GameMemory;
 import bubba.cpu.M68k;
 
@@ -50,14 +52,6 @@ final class HeroStates {
                 return ALL;
             }
         });
-    }
-
-    private static int sw(int reg, int v) {
-        return (reg & 0xffff0000) | (v & 0xffff);
-    }
-
-    private static int sb(int reg, int v) {
-        return (reg & 0xffffff00) | (v & 0xff);
     }
 
     static void dispatch(M68k c) {

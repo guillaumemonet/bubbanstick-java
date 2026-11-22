@@ -1,5 +1,7 @@
 package bubba.game;
 
+import static bubba.game.Regs.*;
+
 import bubba.cpu.GameMemory;
 import bubba.cpu.M68k;
 
@@ -44,14 +46,6 @@ final class LevelStart {
         add(ports, 0x8638, LevelStart::statusBar);
         add(ports, 0xc666, LevelStart::clearAnims);
         ports.put(0x6cd8, c -> { }); // input routine: nothing (rts)
-    }
-
-    private static int sw(int reg, int v) {
-        return (reg & 0xffff0000) | (v & 0xffff);
-    }
-
-    private static int sb(int reg, int v) {
-        return (reg & 0xffffff00) | (v & 0xff);
     }
 
     /** 0x6C18. */

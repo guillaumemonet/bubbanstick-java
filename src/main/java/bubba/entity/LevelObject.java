@@ -1,7 +1,6 @@
 package bubba.entity;
 
 import bubba.cpu.GameMemory;
-import bubba.level.LevelData;
 
 /**
  * View on an object structure of the emulated game memory (original pool at $17ED8, $BA bytes
@@ -15,8 +14,7 @@ import bubba.level.LevelData;
  *  +$63 never removed off screen   +$64 landed   +$86/$88 position relative to Bubba
  *  +$8A random   +$8B counter   +$8C..$98 velocity limits   +$9E/$9F wall/floor hit   +$A0 sprite base
  * </pre>
- * Per-frame order is the original one (code 0xDEEA): timer, behaviour, relative position,
- * counter, animation.
+ * The ported natives of {@link bubba.entity.natives} read and write the objects through it.
  */
 public final class LevelObject {
 
@@ -33,21 +31,6 @@ public final class LevelObject {
     /** Type number as in the mtrg records (index + 1). */
     public int typeId() {
         return word(0x5c) + 1;
-    }
-
-    public void update(LevelData level, NativeCalls natives, int playerX, int playerY) {
-        if (word(0x3a) != 0) {
-            setWord(0x3a, word(0x3a) - 1);
-        }
-        if (getLong(0x10) != 0) {
-            BehaviourVM.step(this, ram, level, natives, getByte(0x1f));
-        }
-        setWord(0x86, x() - playerX);
-        setWord(0x88, y() - playerY);
-        setByte(0x8b, getByte(0x8b) + 2);
-        if (getLong(0x0c) != 0) {
-            AnimVM.step(this, ram, natives);
-        }
     }
 
     public int x() {

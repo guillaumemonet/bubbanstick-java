@@ -14,7 +14,7 @@ import java.util.Set;
  * Goal: the whole game logic in Java (no emulation). Routines are ported one by one; each port
  * replaces its routine (hook at its address). With -Dbubba.verifyPorts=true every call also runs
  * the original code from the same state and reports the first difference in memory (and in the
- * registers the callers use), like {@link bubba.entity.NativeCalls} did for the natives.
+ * registers the callers use).
  */
 public final class Ports {
 

@@ -1,5 +1,7 @@
 package bubba.game;
 
+import static bubba.game.Regs.*;
+
 import bubba.cpu.GameMemory;
 import bubba.cpu.M68k;
 
@@ -145,15 +147,6 @@ final class ObjectLoop {
             m.write16(a + 44, cnt);
             m.write16(a + 46, 0);
         }
-    }
-
-    private static int swap(int v) {
-        return (v << 16) | (v >>> 16);
-    }
-
-    private static int rorw(int v) {
-        int w = v & 0xffff;
-        return (v & 0xffff0000) | (((w >>> 1) | (w << 15)) & 0xffff);
     }
 
     private static int lo(int v, int w) {

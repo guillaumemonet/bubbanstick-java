@@ -31,7 +31,7 @@ public final class NativeContext {
         this.level = level;
         this.game = null;
         this.cpu = new M68k(ram);
-        cpu.hook(0x7bc8, c -> { });          // sound: ignored (same as NativeCalls)
+        cpu.hook(0x7bc8, c -> { });          // sound: ignored
         cpu.hook(0x7bca, c -> { });
         cpu.hook(0x107b2, c -> c.z = false); // spawn: failure until a spawner is installed
     }

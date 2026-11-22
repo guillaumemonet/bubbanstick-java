@@ -1,5 +1,7 @@
 package bubba.game;
 
+import static bubba.game.Regs.*;
+
 import bubba.cpu.GameMemory;
 import bubba.cpu.M68k;
 
@@ -17,7 +19,6 @@ import java.util.Map;
 final class Stage5Boss {
 
     private static final int[] ALL = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
-    private static final int RND = 0x10894;
     private static final int P0 = 0x10aea, P1 = 0x10aee, P2 = 0x10af2, P3 = 0x10af6, P4 = 0x10afa,
             BRAIN = 0x10afe, PHASE = 0x10ad6;
 
@@ -36,18 +37,6 @@ final class Stage5Boss {
                 return ALL;
             }
         });
-    }
-
-    private static int sw(int reg, int v) {
-        return (reg & 0xffff0000) | (v & 0xffff);
-    }
-
-    private static int sb(int reg, int v) {
-        return (reg & 0xffffff00) | (v & 0xff);
-    }
-
-    private static int swap(int v) {
-        return (v >>> 16) | (v << 16);
     }
 
     static void register(Map<Integer, Ports.Port> m) {
@@ -558,16 +547,8 @@ final class Stage5Boss {
 
     /** The random generator of $12414 / $14ABA / $14B44 (address register {@code reg} = $10894). */
     private static void rngA(M68k c, int reg) {
-        GameMemory g = c.mem;
-        c.d[0] = g.read32(RND);
-        c.d[1] = g.read32(RND + 4);
-        c.d[1] = sw(c.d[1], c.d[1] ^ c.d[0]);
-        int w = c.d[1] & 0xffff;
-        c.d[1] = sw(c.d[1], (w >>> 1) | (w << 15));
-        c.d[0] = sw(c.d[0], c.d[0] ^ c.d[1]);
-        c.d[0] = swap(c.d[0]);
-        g.write32(RND + 4, c.d[0]);
-        g.write32(RND, c.d[1]);
+        c.d[0] = random(c.mem);
+        c.d[1] = c.mem.read32(RND);
         c.a[reg] = RND;
     }
 
@@ -617,17 +598,6 @@ final class Stage5Boss {
         c.a[4] = pop(c);
         g.write32(c.a[5] + 0x36, c.a[4]);
         c.a[4] = 0x14930;
-    }
-
-    private static void push(M68k c, int v) {
-        c.a[7] -= 4;
-        c.mem.write32(c.a[7], v);
-    }
-
-    private static int pop(M68k c) {
-        int v = c.mem.read32(c.a[7]);
-        c.a[7] += 4;
-        return v;
     }
 
     /** $12508 / $12522: (a0) +$38/+$3C = part 1's position + (d0, -18). */

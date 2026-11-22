@@ -1,5 +1,7 @@
 package bubba.game;
 
+import static bubba.game.Regs.*;
+
 import bubba.cpu.GameMemory;
 import bubba.cpu.M68k;
 
@@ -49,14 +51,6 @@ final class Respawn {
         add(ports, 0x101bc, c -> forward(c, 0x108ca, 2, 0x1a0));
         add(ports, 0x101f4, c -> backward(c, 0x108ce, 4, 0x160));
         add(ports, 0x1022e, c -> backward(c, 0x108ca, 2, 0x1a0));
-    }
-
-    private static int sw(int reg, int v) {
-        return (reg & 0xffff0000) | (v & 0xffff);
-    }
-
-    private static int sb(int reg, int v) {
-        return (reg & 0xffffff00) | (v & 0xff);
     }
 
     // ------------------------------------------------------------------ 0xCAEA

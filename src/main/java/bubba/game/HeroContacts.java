@@ -275,15 +275,8 @@ final class HeroContacts {
 
     /** RNG step of $10894/$10898 (as in 0xF68A / 0xD87A); returns the new d2 word. */
     static int random(GameMemory m) {
-        int d0 = m.read32(0x10894), d2 = m.read32(0x10898);
-        int lo = (d2 ^ d0) & 0xffff;
-        lo = ((lo >>> 1) | (lo << 15)) & 0xffff;
-        d2 = (d2 & 0xffff0000) | lo;
-        d0 = (d0 & 0xffff0000) | ((d0 ^ lo) & 0xffff);
-        d0 = (d0 << 16) | (d0 >>> 16);
-        m.write32(0x10898, d0);
-        m.write32(0x10894, d2);
-        return (short) lo;
+        Regs.random(m);
+        return (short) m.read16(Regs.RND + 2);
     }
 
     /** 0xF7E2: next pan step from the previous one v (-1, 0, 1) and a random word. */

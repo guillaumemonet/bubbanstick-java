@@ -1,5 +1,7 @@
 package bubba.game;
 
+import static bubba.game.Regs.*;
+
 import bubba.cpu.GameMemory;
 import bubba.cpu.M68k;
 
@@ -39,18 +41,6 @@ final class HeroPhysics {
                 return new int[]{13}; // a5: the main loop goes on with it
             }
         });
-    }
-
-    private static int sw(int reg, int v) {
-        return (reg & 0xffff0000) | (v & 0xffff);
-    }
-
-    private static int sb(int reg, int v) {
-        return (reg & 0xffffff00) | (v & 0xff);
-    }
-
-    private static int swap(int x) {
-        return (x << 16) | (x >>> 16);
     }
 
     private static int mulu(int a, int b) {

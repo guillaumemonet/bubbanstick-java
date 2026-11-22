@@ -1,0 +1,30 @@
+plugins {
+    id 'application'
+}
+
+group = 'bubba'
+version = '0.1.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+application {
+    mainClass = 'bubba.Main'
+}
+
+// Assets extracted from the original disks live in ../assets (see ../tools/extract_all.py)
+run {
+    workingDir = projectDir
+    systemProperty 'bubba.assets', file('../assets').absolutePath
+    // gradlew run -PverifyPorts : every Java port is checked against the original 68000 code
+    if (project.hasProperty('verifyPorts')) {
+        systemProperty 'bubba.verifyPorts', 'true'
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}

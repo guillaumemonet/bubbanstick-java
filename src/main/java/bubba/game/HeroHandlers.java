@@ -63,6 +63,7 @@ final class HeroHandlers {
         port(ports, 0xb298, R::state1e);
         port(ports, 0xb2ca, R::state20);
         port(ports, 0xb2fe, R::state22);
+        port(ports, 0xb35c, R::state24);
     }
 
     private static int sw(int reg, int v) {
@@ -1471,6 +1472,176 @@ final class HeroHandlers {
             }
             d0 = 0x24;
             setState();
+        }
+
+        // ---------------------------------------------------------------- state 24: a life lost
+
+        private int pd1, pa0, pa1; // movem.l d1/a0-a1, -(a7)
+
+        private void push() {
+            pd1 = d1;
+            pa0 = a0;
+            pa1 = a1;
+        }
+
+        private void pop() {
+            d1 = pd1;
+            a0 = pa0;
+            a1 = pa1;
+        }
+
+        /** 0xB35C. */
+        void state24() {
+            w32(a1 + 0x28, 0);
+            int v = ~r8(a1 + 0x4c) & 0xff;
+            w8(a1 + 0x4c, v);
+            if ((v & 0x80) != 0) {
+                return;
+            }
+            if ((d1 & 0xffff) == 0x28) {
+                d2 = 7;
+                d3 = 0;
+                sound();
+            }
+            push();
+            if ((d1 & 0xffff) == 0x30) {
+                b44c();
+                return;
+            }
+            if ((d1 & 0xffff) == 0x10) {
+                w32(0x8264, 0);
+                a0 = 0x4092;
+                a1 = 0x999e;
+                jump(0x79ee);
+                pop(); // movem.l (a7), d1/a0-a1: read back, not popped
+            }
+            if ((short) d1 < 0x2a) {
+                pop();
+                d1 = sw(d1, d1 + 2);
+                if ((short) d1 >= 0x30) {
+                    a652();
+                }
+                return;
+            }
+            if (s16(a0) == 0x18) {
+                d0 = sb(d0, r8(0x10abb));
+                if ((d0 & 0xff) != 0) {
+                    a2 = 0xb658;
+                    w16(a2 - 0x14e, 0);
+                    w32(0x5a6e, a2);
+                    d2 = sw(d2, r16(0x10a50));
+                    d2 = sw(d2, d2 * 2);
+                    if ((short) d2 >= 0) {
+                        a2 = 0x10a54;
+                        w32(a2, 0x27100000);
+                        a2 += 4;
+                        w16(a2, 8);
+                    }
+                }
+            }
+            int t = (short) (r16(a0) - 1);
+            w16(a0, t);
+            if (t > 0) {
+                pop();
+                return;
+            }
+            if (t < 0) {
+                // 0xB4AC
+                d0 = sb(d0, r8(0x10abb));
+                if ((d0 & 0xff) != 0) {
+                    pop();
+                    b42e();
+                    return;
+                }
+                pop();
+                d1 = sw(d1, d1 + 2);
+                if ((short) d1 >= 0x30) {
+                    a652();
+                }
+                return;
+            }
+            b3dc();
+        }
+
+        /** 0xB3DC: restart from the last check point (ends with the pop of 0xB414). */
+        private void b3dc() {
+            d0 = sb(d0, r8(0x10abb));
+            w8(0x10abc, (d0 & 0xff) != 0 ? 0xff : 0);
+            if ((d0 & 0xff) != 0) {
+                w16(0x10ac4, 0);
+                pop();
+                return;
+            }
+            jump(0x7956);
+            jump(0xcaea);
+            a0 = 0x10ab6;
+            w32(a0, 0x10006);
+            a0 += 4;
+            w8(a0, 0);
+            a0 = 0x41ca;
+            a1 = 0x999e;
+            jump(0x79ee);
+            a0 = 0xbda1;
+            w8(a0, 0);
+            a0++;
+            w16(a0, 0x19);
+            a0 += 2;
+            pop();
+        }
+
+        /** 0xB42E. */
+        private void b42e() {
+            w16(0x10ac4, 0);
+            d0 = sb(d0, r8(0x10ad5));
+            if ((d0 & 0xff) == 0) {
+                return;
+            }
+            w8(0x10ad5, 0);
+            d1 = 0;
+            w16(a1, 0);
+            d0 = 0x28;
+            setState();
+        }
+
+        /** 0xB44C. */
+        private void b44c() {
+            if (r16(a0) == 0x19) {
+                w32(0x8264, 0);
+                a0 = 0x4092;
+                a1 = 0x999e;
+                jump(0x79ee);
+            }
+            pop();
+            if (r16(a0) == 0x1a) {
+                d0 = sb(d0, r8(0x10abb));
+                if ((d0 & 0xff) != 0) {
+                    a2 = 0x10a54;
+                    w32(a2, 0x27100000);
+                    a2 += 4;
+                    w16(a2, 8);
+                    a2 = 0xb658;
+                    w16(a2 - 0x14e, 0);
+                    w32(0x5a6e, a2);
+                }
+            }
+            int t = (short) (r16(a0) - 1);
+            w16(a0, t);
+            if (t > 0) {
+                return;
+            }
+            if (t < 0) {
+                b42e();
+                return;
+            }
+            d0 = sb(d0, r8(0x10abb));
+            w8(0x10abc, (d0 & 0xff) != 0 ? 0xff : 0);
+            if ((d0 & 0xff) != 0) {
+                w16(0x10ac4, 0);
+                return;
+            }
+            d1 = 0x2e;
+            push();
+            b3dc();
         }
 
         // ---------------------------------------------------------------- state 0: standing

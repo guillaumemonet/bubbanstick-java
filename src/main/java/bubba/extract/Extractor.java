@@ -28,7 +28,7 @@ import java.util.function.Consumer;
 public final class Extractor {
 
     /** Bumped when the produced files change, so an older assets directory is rebuilt. */
-    public static final int VERSION = 1;
+    public static final int VERSION = 2;
     public static final String MARKER = "extract.version";
 
     private static final int PAL_CLOCK = 3546895;
@@ -127,12 +127,24 @@ public final class Extractor {
     }
 
     /** Indexed pixels to an ARGB image; colour 0 is transparent when {@code clear0}. */
+    /**
+     * An indexed picture (8-bit PNG with its palette): the game recolours level blocks and
+     * sprites at run time (see {@link bubba.engine.PalettedImage}). Colour 0 transparent if asked.
+     */
     private static BufferedImage image(byte[] px, int w, int h, int[] pal, boolean clear0) {
-        BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        int n = Math.min(256, pal.length);
+        byte[] r = new byte[n], g = new byte[n], b = new byte[n];
+        for (int i = 0; i < n; i++) {
+            r[i] = (byte) (pal[i] >> 16);
+            g[i] = (byte) (pal[i] >> 8);
+            b[i] = (byte) pal[i];
+        }
+        java.awt.image.IndexColorModel cm = new java.awt.image.IndexColorModel(8, n, r, g, b, clear0 ? 0 : -1);
+        BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_BYTE_INDEXED, cm);
+        java.awt.image.WritableRaster wr = img.getRaster();
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
-                int v = px[y * w + x] & 0xff;
-                img.setRGB(x, y, clear0 && v == 0 ? 0 : 0xff000000 | pal[v]);
+                wr.setSample(x, y, 0, px[y * w + x] & 0xff);
             }
         }
         return img;
@@ -320,7 +332,9 @@ public final class Extractor {
         progress.accept("fin du jeu");
         byte[] code = disks.code();
         int[] pa = amigaPalette(words(code, 0x45e, 16));
-        int[] w9 = words(code, 0x47e, 16);
+        // the last frame: COLOR01-15 from 0x47E (code 0x178 copies them to the fade target of
+        // the list $9D58 = COLOR01-15), COLOR00 black
+        int[] w9 = words(code, 0x47c, 16);
         w9[0] = 0;
         int[] p9 = amigaPalette(w9);
         int i = 0;

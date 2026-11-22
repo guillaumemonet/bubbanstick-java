@@ -22,6 +22,9 @@ public final class Parallax {
     private static final int TILES = 83;
 
     private final BufferedImage strip;
+    /** Line (0-31) of each strip pixel set, -1 = clear: the strip is redrawn when colours change. */
+    private final byte[] lines;
+    private int[] stripColors;
     /** Sky objects (level 1 only: mplxobj1.hs), null when the level has none. */
     private final ParallaxObjects objects;
     private final int shift;
@@ -43,6 +46,8 @@ public final class Parallax {
         }
         objects = objs;
         strip = new BufferedImage(TILES * 16, 32, BufferedImage.TYPE_INT_ARGB);
+        lines = new byte[TILES * 16 * 32];
+        java.util.Arrays.fill(lines, (byte) -1);
         for (int k = 0; k < TILES; k++) {
             int off = (short) u16(info, list + 2 * k);
             for (int y = 0; y < 32; y++) {
@@ -54,8 +59,23 @@ public final class Parallax {
                 for (int x = 0; x < 16; x++) {
                     if ((w >> (15 - x) & 1) != 0) {
                         strip.setRGB(k * 16 + x, y, colors[y]);
+                        lines[y * TILES * 16 + k * 16 + x] = (byte) y;
                     }
                 }
+            }
+        }
+    }
+
+    /** Colours of the 32 hill lines from now on (ARGB; they fade with the rest of the screen). */
+    public void setColors(int[] colors) {
+        if (java.util.Arrays.equals(colors, stripColors)) {
+            return;
+        }
+        stripColors = colors.clone();
+        int w = TILES * 16;
+        for (int i = 0; i < lines.length; i++) {
+            if (lines[i] >= 0) {
+                strip.setRGB(i % w, i / w, colors[lines[i]]);
             }
         }
     }

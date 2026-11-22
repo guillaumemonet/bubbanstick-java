@@ -33,7 +33,8 @@ public final class EmuShot {
         GameEmulator emu = new GameEmulator(assets, level, 3, 6, null);
         java.util.Map<Integer, Integer> sounds = new java.util.TreeMap<>();
         emu.onSound = n -> sounds.merge(n, 1, Integer::sum);
-        SpriteBank sprites = new SpriteBank(assets, level.spritesDir());
+        SpriteBank sprites = new SpriteBank(assets, level.spritesDir(), level.basePalette());
+        sprites.redirections(emu.ram);
         HeroSprites hero = new HeroSprites(assets);
         int step = 0;
         for (String part : args[3].split(",")) {
@@ -81,7 +82,9 @@ public final class EmuShot {
         Graphics2D g = img.createGraphics();
         GameMemory m = emu.ram;
         int cx = emu.viewX() + 3, cy = emu.viewY();
-        level.drawSky(g, 284, 208);
+        level.setPalette(emu.palette());
+        sprites.setPalette(emu.palette());
+        level.drawSky(g, 284, 208, emu.skyColours());
         try {
             new bubba.level.Parallax(new Assets(java.nio.file.Paths.get(System.getProperty("bubba.assets", "../assets"))), level)
                     .draw(g, cx, 284, emu.camX());
@@ -94,7 +97,7 @@ public final class EmuShot {
         for (int i = 0; i < np; i++) {
             int p = m.read32(0x175da + 4 * i);
             if (m.read16(p + 0x12) != 0) {
-                sprites.draw(g, m.read16(p + 0x12) >> 1, (short) m.read16(p + 0x38) - cx, (short) m.read16(p + 0x3c) - cy);
+                sprites.drawWord(g, m.read16(p + 0x12) >> 1, (short) m.read16(p + 0x38) - cx, (short) m.read16(p + 0x3c) - cy);
             }
         }
         for (int list : new int[]{0x17596, 0x17514}) {
@@ -103,8 +106,9 @@ public final class EmuShot {
                 int o = m.read32(list + 2 + 4 * i);
                 int sp = m.read16(o + 0x0a);
                 int x = (short) m.read16(o + 2) - cx, y = (short) m.read16(o + 6) - cy;
-                if (sp < 0xfffe) {
-                    sprites.draw(g, (sp + m.read16(o + 0xa0)) & 0xffff, x, y);
+                int id = (short) sp + (short) m.read16(o + 0xa0);
+                if (id == (short) id) {
+                    sprites.draw(g, id, x, y);
                 }
                 g.setColor(Color.YELLOW);
                 g.drawRect(x + (short) m.read16(o + 0x14), y + (short) m.read16(o + 0x16),
@@ -113,7 +117,7 @@ public final class EmuShot {
         }
         int s = GameEmulator.STIX;
         if ((short) m.read16(s + 0x9c) >= 0 && m.read8(0x10966) == 0) {
-            sprites.draw(g, 2 * m.read16(s + 0x0a), (short) m.read16(s + 2) - cx, (short) m.read16(s + 6) - cy);
+            sprites.drawWord(g, (2 * m.read16(s + 0x0a)) & 0x7fff, (short) m.read16(s + 2) - cx, (short) m.read16(s + 6) - cy);
         }
         try {
             new bubba.level.ForegroundParallax(new Assets(java.nio.file.Paths.get(System.getProperty("bubba.assets", "../assets"))), level)

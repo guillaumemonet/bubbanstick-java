@@ -40,7 +40,11 @@ public final class Main {
         SwingUtilities.invokeLater(() -> {
             game.open();
             int stage = Integer.getInteger("bubba.stage", 0); // gradlew run -Pstage=5
-            game.scenes().set(stage >= 1 && stage <= 5 ? new bubba.scenes.LevelScene(stage) : new TitleScene());
+            if (Boolean.getBoolean("bubba.ending")) { // gradlew run -Pending
+                game.scenes().set(new bubba.scenes.EndingScene());
+            } else {
+                game.scenes().set(stage >= 1 && stage <= 5 ? new bubba.scenes.LevelScene(stage) : new TitleScene());
+            }
             game.start();
         });
     }

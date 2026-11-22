@@ -47,6 +47,19 @@ public final class Assets {
     }
 
     /** Load (and cache) an image, converted to ARGB so transparency is kept. */
+    /** The image as stored (an indexed PNG keeps its colour indices), not cached. */
+    public BufferedImage rawImage(String relative) {
+        try {
+            BufferedImage src = ImageIO.read(path(relative).toFile());
+            if (src == null) {
+                throw new IOException("Unreadable image " + relative);
+            }
+            return src;
+        } catch (IOException e) {
+            throw new UncheckedIOException("Cannot load image " + path(relative), e);
+        }
+    }
+
     public synchronized BufferedImage image(String relative) {
         return images.computeIfAbsent(relative, r -> {
             try {

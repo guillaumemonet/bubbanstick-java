@@ -60,7 +60,7 @@ public final class LevelScene implements Scene {
     public void enter(Game game) {
         level = LevelData.stage(game.assets(), stage);
         heroSprites = new HeroSprites(game.assets());
-        sprites = new SpriteBank(game.assets(), level.spritesDir());
+        sprites = new SpriteBank(game.assets(), level.spritesDir(), level.basePalette());
         try {
             parallax = new bubba.level.Parallax(game.assets(), level);
         } catch (RuntimeException e) {
@@ -72,6 +72,7 @@ public final class LevelScene implements Scene {
             foreground = null; // only level 1 has one
         }
         emu = new GameEmulator(game.assets(), level, startLives, startEnergy, startScore);
+        sprites.redirections(emu.ram);
         game.music().setVolume(0.8f);
         bubba.engine.Settings.Sound option = bubba.engine.Settings.sound;
         if (option.music()) {
@@ -142,6 +143,8 @@ public final class LevelScene implements Scene {
         if (!running) {
             if (emu.lives() < 0) {
                 game.scenes().set(new TitleScene()); // game over
+            } else if (emu.ram.read8(0x108e9) != 0) {
+                game.scenes().set(new EndingScene()); // code 0x3F82: the end of the game
             } else {
                 game.scenes().set(new LevelScene(stage % 5 + 1, emu.lives(), emu.energy(), emu.score()));
             }
@@ -157,8 +160,12 @@ public final class LevelScene implements Scene {
         g.translate(VIEW_X, VIEW_Y);
         // playfield (map, BOBs): origin from the scroll routine 0x4BFC; hero sprite: camera
         int cx = emu.viewX() - SCREEN_DX, cy = emu.viewY();
-        level.drawSky(g, VIEW_W, VIEW_H);
+        int[] pal = emu.palette(); // COLOR00-15 of the copper list: fades, stage 5 boss
+        level.setPalette(pal);
+        sprites.setPalette(pal);
+        level.drawSky(g, VIEW_W, VIEW_H, emu.skyColours());
         if (parallax != null) {
+            parallax.setColors(emu.hillColours());
             parallax.draw(g, cx, VIEW_W, emu.camX());
         }
         level.draw(g, cx, cy, VIEW_W, VIEW_H, emu::blockAt);
@@ -202,11 +209,10 @@ public final class LevelScene implements Scene {
             if (o == 0) {
                 continue;
             }
-            int s = m.read16(o + 0x0a);
-            if (s >= 0xfffe) {
-                continue;
+            int id = (short) m.read16(o + 0x0a) + (short) m.read16(o + 0xa0);
+            if (id != (short) id) {
+                continue; // bvs: overflow, not drawn
             }
-            int id = (s + m.read16(o + 0xa0)) & 0xffff;
             sprites.draw(g, id, (short) m.read16(o + 2) - cx, (short) m.read16(o + 6) - cy);
         }
     }
@@ -218,7 +224,7 @@ public final class LevelScene implements Scene {
             int p = m.read32(0x175da + 4 * i);
             int s = m.read16(p + 0x12);
             if (s != 0) {
-                sprites.draw(g, s >> 1, (short) m.read16(p + 0x38) - cx, (short) m.read16(p + 0x3c) - cy);
+                sprites.drawWord(g, s >> 1, (short) m.read16(p + 0x38) - cx, (short) m.read16(p + 0x3c) - cy);
             }
         }
     }
@@ -229,8 +235,8 @@ public final class LevelScene implements Scene {
         if ((short) m.read16(s + 0x9c) < 0 || m.read8(0x10966) != 0) {
             return;
         }
-        int id = (2 * m.read16(s + 0x0a)) & 0xffff;
-        sprites.draw(g, id, (short) m.read16(s + 2) - cx, (short) m.read16(s + 6) - cy);
+        int w = (2 * m.read16(s + 0x0a)) & 0x7fff; // 4 * +$0A bytes: always a first word
+        sprites.drawWord(g, w, (short) m.read16(s + 2) - cx, (short) m.read16(s + 6) - cy);
     }
 
     private void drawDebug(Graphics2D g, GameMemory m, int cx, int cy) {

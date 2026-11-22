@@ -107,11 +107,85 @@ public final class GameEmulator {
         cpu.a[7] = GameMemory.STACK_TOP;
         bubba.game.Ports.call(cpu, 0x6c18);  // end of the level start: hero, objects, Stix
         bubba.game.Ports.call(cpu, 0x8638);  // status bar: energy refilled step by step
+        levelColours(info);
         if (score != null) {
             for (int i = 0; i < 3; i++) {
                 ram.write8(SCORE + i, score[i]);
             }
         }
+    }
+
+    /**
+     * Colours at the start of the level: info+$12 into the buffer $8162 with COLOR00 cleared
+     * (code 0x6692 / 0x66EC), COLOR00-15 of the copper list $600D0 from it (code 0x3A3C), then
+     * the sprite colours of the list $9966 saved, cleared and faded in (code 0x3A86).
+     */
+    private void levelColours(byte[] info) {
+        for (int i = 0; i < 16; i++) {
+            int c = i == 0 ? 0 : ((info[0x12 + 2 * i] & 0xff) << 8) | (info[0x13 + 2 * i] & 0xff);
+            ram.write16(0x8162 + 2 * i, c);
+            ram.write16(COPPER_COLOURS + 4 * i, c);
+        }
+        ram.write16(0x600d2 + 0x1e60, 0);
+        // the sky (31 lines) and hill colours (32 lines) of info+$52, and the end of the fade
+        // lists (code 0x9DDC): the original points them into its copper sky; here they point to
+        // these 63 words, which the renderer reads. No water copper: the entry $9996 points to
+        // the dummy word $9DDA, as when the level has no water.
+        for (int i = 0; i < 63; i++) {
+            ram.write16(SKY + 2 * i, ((info[0x52 + 2 * i] & 0xff) << 8) | (info[0x53 + 2 * i] & 0xff));
+        }
+        ram.write32(0x9996, 0x9dda);
+        ram.write32(0x999a, 0);
+        ram.write32(0x99fe, SKY);
+        ram.write16(0x9a02, 30);
+        ram.write16(0x9a04, 2);
+        ram.write32(0x9a06, SKY + 62);
+        ram.write16(0x9a0a, 31);
+        ram.write16(0x9a0c, 2);
+        ram.write32(0x9a0e, 0);
+        ram.write16(0x9a12, 0xffff);
+        ram.write32(0x42a2, 0x9966);
+        bubba.game.Fades.snapshotAndClear(ram);
+        cpu.a[0] = 0x41ca;
+        cpu.a[1] = 0x9966;
+        bubba.game.Ports.call(cpu, 0x79ee);
+    }
+
+    /** COLOR00-15 values in the main copper list ($600D0, one MOVE every 4 bytes). */
+    private static final int COPPER_COLOURS = 0x600d2;
+
+    /** Sky and hill colours (63 words), faded with the screen. */
+    private static final int SKY = 0xcf000;
+
+    private static int rgb(int c) {
+        return ((c >> 8 & 15) * 17) << 16 | ((c >> 4 & 15) * 17) << 8 | (c & 15) * 17;
+    }
+
+    /** COLOR00 of the 31 sky lines (0xRRGGBB). */
+    public int[] skyColours() {
+        int[] p = new int[31];
+        for (int i = 0; i < 31; i++) {
+            p[i] = rgb(ram.read16(SKY + 2 * i));
+        }
+        return p;
+    }
+
+    /** Colour of the 32 hill lines (ARGB). */
+    public int[] hillColours() {
+        int[] p = new int[32];
+        for (int i = 0; i < 32; i++) {
+            p[i] = 0xff000000 | rgb(ram.read16(SKY + 62 + 2 * i));
+        }
+        return p;
+    }
+
+    /** COLOR00-15 of the moment (0xRRGGBB), for the playfield and the BOBs. */
+    public int[] palette() {
+        int[] p = new int[16];
+        for (int i = 0; i < 16; i++) {
+            p[i] = rgb(ram.read16(COPPER_COLOURS + 4 * i));
+        }
+        return p;
     }
 
     /** Boot code 0x61AC: the hero frame table $1C174 gets its data pointers relocated (+$1D36A). */
@@ -187,6 +261,8 @@ public final class GameEmulator {
             go = bubba.game.MainLoop.frame(cpu); // the main loop in Java
         }
         ended = !go;
+        bubba.game.Fades.vbl(ram); // two VBLs per logic frame (the interrupt's palette fades)
+        bubba.game.Fades.vbl(ram);
         return go;
     }
 

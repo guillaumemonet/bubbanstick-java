@@ -46,7 +46,21 @@ public final class LevelData {
         return hillColors.clone();
     }
 
-    private final BufferedImage[] blocks;
+    private final bubba.engine.PalettedImage[] blocks;
+    /** COLOR00-15 of the level file (info+$12, COLOR00 cleared: code 0x6692), 0xRRGGBB. */
+    private final int[] basePalette = new int[16];
+    /** The colours the blocks are drawn with (the game changes them: fades, stage 5). */
+    private int[] palette;
+
+    /** COLOR00-15 of the level file, 0xRRGGBB (COLOR00 = 0). */
+    public int[] basePalette() {
+        return basePalette.clone();
+    }
+
+    /** Colours to draw the blocks with from now on (16 x 0xRRGGBB). */
+    public void setPalette(int[] rgb) {
+        palette = rgb.clone();
+    }
 
     /** Number of block images in the sheet. */
     public int blockCount() {
@@ -136,15 +150,18 @@ public final class LevelData {
         writeWord(trg, 0);
         triggers = trg.toByteArray();
 
-        BufferedImage sheet = assets.image((String) doc.get("blocks_image"));
+        List<Object> pal = Json.array(doc.get("palette"));
+        for (int i = 1; i < 16 && i < pal.size(); i++) {
+            basePalette[i] = Integer.parseInt(expand((String) pal.get(i)), 16);
+        }
+        palette = basePalette.clone();
+        BufferedImage sheet = assets.rawImage((String) doc.get("blocks_image"));
         int cols = sheet.getWidth() / BLOCK;
         int count = cols * (sheet.getHeight() / BLOCK);
-        blocks = new BufferedImage[count];
+        blocks = new bubba.engine.PalettedImage[count];
         // colour 0 is transparent in the sheet (PNG tRNS), colour 1 is opaque black
         for (int i = 0; i < count; i++) {
-            BufferedImage t = new BufferedImage(BLOCK, BLOCK, BufferedImage.TYPE_INT_ARGB);
-            t.getGraphics().drawImage(sheet.getSubimage((i % cols) * BLOCK, (i / cols) * BLOCK, BLOCK, BLOCK), 0, 0, null);
-            blocks[i] = t;
+            blocks[i] = bubba.engine.PalettedImage.of(sheet, (i % cols) * BLOCK, (i / cols) * BLOCK, BLOCK, BLOCK, basePalette);
         }
     }
 
@@ -266,6 +283,20 @@ public final class LevelData {
         return (a & (ATTR_SOLID | ATTR_TOP | ATTR_SLOPE)) != 0;
     }
 
+    /**
+     * Copper sky with the colours of the moment: {@code lines} = COLOR00 of the first 31 lines
+     * (0xRRGGBB), the last one kept below.
+     */
+    public void drawSky(Graphics2D g, int viewW, int viewH, int[] lines) {
+        int y = 0;
+        for (; y < viewH && y < lines.length - 1; y++) {
+            g.setColor(new Color(lines[y]));
+            g.fillRect(0, y, viewW, 1);
+        }
+        g.setColor(new Color(lines[lines.length - 1]));
+        g.fillRect(0, y, viewW, viewH - y);
+    }
+
     /** Copper sky (fixed to the screen like on the Amiga). */
     public void drawSky(Graphics2D g, int viewW, int viewH) {
         for (int y = 0; y < viewH; y++) {
@@ -290,7 +321,7 @@ public final class LevelData {
             for (int bx = bx0; bx <= bx1; bx++) {
                 int b = blockAt.applyAsInt(bx, by);
                 if (b > 0 && b < blocks.length) {
-                    g.drawImage(blocks[b], bx * BLOCK - cx, by * BLOCK - cy, null);
+                    g.drawImage(blocks[b].image(palette), bx * BLOCK - cx, by * BLOCK - cy, null);
                 }
             }
         }

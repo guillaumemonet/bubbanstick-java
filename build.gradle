@@ -24,6 +24,9 @@ run {
     if (project.hasProperty('stage')) {
         systemProperty 'bubba.stage', project.property('stage')
     }
+    if (project.hasProperty('ending')) { // gradlew run -Pending : the end sequence
+        systemProperty 'bubba.ending', 'true'
+    }
     if (project.hasProperty('invincible')) {
         systemProperty 'bubba.invincible', 'true'
     }

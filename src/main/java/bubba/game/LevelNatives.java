@@ -595,7 +595,7 @@ final class LevelNatives {
                 g.write16(c.a[1] + 6, g.read16(o + 6));
                 g.write8(c.a[1] + 0x63, 0xff);
             }
-            c.d[0] = sw(c.d[0], 0xffff);
+            c.d[0] = 0xffff; // moveq #4 then dbra
         });
         add(m, 0x14e46, LevelNatives::s5Sequencer);
         add(m, 0x12610, c -> { // the object's particle position kept at $12D5E

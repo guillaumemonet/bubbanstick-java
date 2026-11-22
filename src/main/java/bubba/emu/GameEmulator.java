@@ -128,6 +128,21 @@ public final class GameEmulator {
             ram.write16(COPPER_COLOURS + 4 * i, c);
         }
         ram.write16(0x600d2 + 0x1e60, 0);
+        // boot (code 0x5FA2): the hero palette $81A2 into COLOR16-31 of the buffer ($8182)
+        for (int i = 0; i < 16; i++) {
+            ram.write16(0x8182 + 2 * i, ram.read16(0x81a2 + 2 * i));
+        }
+        // sprite colours: COLOR17-31 of the copper list from $8184 (code 0x3A54), and COLOR21-23
+        // of the status bar's copper moves (code 0x671E): Bubba and the bar fade with the screen
+        for (int i = 0; i < 15; i++) {
+            ram.write16(SPRITE_COLOURS + 4 * i, ram.read16(0x8184 + 2 * i));
+        }
+        for (int k = 0; k < 3; k++) {
+            int c = ram.read16(0x8184 + 2 * k);
+            for (int a : new int[]{0x6200e, 0x620ae, 0x61fbe, 0x61f7e}) {
+                ram.write16(a + 4 * k, c);
+            }
+        }
         // the sky (31 lines) and hill colours (32 lines) of info+$52, and the end of the fade
         // lists (code 0x9DDC): the original points them into its copper sky; here they point to
         // these 63 words, which the renderer reads. No water copper: the entry $9996 points to
@@ -185,6 +200,22 @@ public final class GameEmulator {
         int[] p = new int[16];
         for (int i = 0; i < 16; i++) {
             p[i] = rgb(ram.read16(COPPER_COLOURS + 4 * i));
+        }
+        return p;
+    }
+
+    /** COLOR17-31 of the copper list (copied from $8184 at the level start). */
+    public static final int SPRITE_COLOURS = 0x61b66;
+
+    /** Colours 1-15 of the hero sprites of the moment (COLOR17-31, 0xRRGGBB; entry 0 unused). */
+    public int[] spritePalette() {
+        return spritePalette(ram);
+    }
+
+    public static int[] spritePalette(GameMemory m) {
+        int[] p = new int[16];
+        for (int i = 1; i < 16; i++) {
+            p[i] = rgb(m.read16(SPRITE_COLOURS + 4 * (i - 1)));
         }
         return p;
     }

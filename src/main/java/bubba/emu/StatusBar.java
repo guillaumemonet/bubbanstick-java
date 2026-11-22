@@ -14,7 +14,8 @@ import java.awt.image.BufferedImage;
  *   <li>sprite 3: "x" and the lives digit;</li>
  *   <li>sprites 4+5 and 6+7: attached pairs, Bubba's portrait (15 colours).</li>
  * </ul>
- * Colours: the hero sprite palette (code 0x81A2, colours 16-31). The sprite pointers are set at
+ * Colours: the sprite colours of the copper lists (COLOR17-31, and COLOR21-23 rewritten for the
+ * bar), so the bar follows the fades. The sprite pointers are set at
  * line $E0 (bottom of the play window); the horizontal positions are not in the data
  * (written to the sprite registers), the layout here follows the sprite order.
  */
@@ -34,10 +35,15 @@ public final class StatusBar {
         for (int k = 0, a = base; k < 8; a += SIZES[k], k++) {
             start[k] = a;
         }
-        int[] pal = new int[16];
-        for (int i = 0; i < 16; i++) {
-            int c = m.read16(0x81a2 + 2 * i);
-            pal[i] = 0xff000000 | ((c >> 8 & 15) * 0x110000) | ((c >> 4 & 15) * 0x1100) | ((c & 15) * 0x11);
+        // portrait: COLOR17-31; digits and boxes: COLOR21-23 of the bar's copper moves ($6200E)
+        int[] pal = GameEmulator.spritePalette(m), digits = new int[4];
+        for (int i = 1; i < 4; i++) {
+            pal[i] |= 0xff000000;
+            int c = m.read16(0x6200e + 4 * (i - 1));
+            digits[i] = 0xff000000 | ((c >> 8 & 15) * 0x110000) | ((c >> 4 & 15) * 0x1100) | ((c & 15) * 0x11);
+        }
+        for (int i = 4; i < 16; i++) {
+            pal[i] |= 0xff000000;
         }
         for (int y = 0; y < img.getHeight(); y++) {
             for (int px = 0; px < img.getWidth(); px++) {
@@ -66,7 +72,7 @@ public final class StatusBar {
                     int s = 15 - bit;
                     int v = (a >> s & 1) | (b >> s & 1) << 1;
                     if (v != 0) {
-                        img.setRGB(40 + k * 16 + bit, y, pal[v]);
+                        img.setRGB(40 + k * 16 + bit, y, digits[v]);
                     }
                 }
             }

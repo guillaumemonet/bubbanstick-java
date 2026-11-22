@@ -185,7 +185,7 @@ public final class LevelScene implements Scene {
         }
         int h = GameEmulator.HERO;
         heroSprites.draw(g, m.read16(h + 0x50), (short) m.read16(h + 2) - (emu.camX() - SCREEN_DX),
-                (short) m.read16(h + 6) - emu.camY(), (byte) m.read8(h + 0x55) < 0);
+                (short) m.read16(h + 6) - emu.camY(), (byte) m.read8(h + 0x55) < 0, emu.spritePalette());
         if (aFront) {
             foreground.draw(g, emu.camX(), emu.camY(), VIEW_W, true, false);
         }

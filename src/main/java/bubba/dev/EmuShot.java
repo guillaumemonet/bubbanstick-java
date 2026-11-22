@@ -127,7 +127,7 @@ public final class EmuShot {
         }
         int h = GameEmulator.HERO;
         int hx = (short) m.read16(h + 2) - emu.camX() - 3, hy = (short) m.read16(h + 6) - emu.camY();
-        heroSprites.draw(g, m.read16(h + 0x50), hx, hy, (byte) m.read8(h + 0x55) < 0);
+        heroSprites.draw(g, m.read16(h + 0x50), hx, hy, (byte) m.read8(h + 0x55) < 0, emu.spritePalette());
         g.setColor(Color.CYAN);
         g.drawRect(hx + (short) m.read16(h + 0x14), hy + (short) m.read16(h + 0x16),
                 (short) m.read16(h + 0x18), (short) m.read16(h + 0x1a));

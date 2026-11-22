@@ -66,6 +66,11 @@ final class HeroHandlers {
         port(ports, 0xb35c, R::state24);
         port(ports, 0xa8e6, R::a8e6);
         port(ports, 0xa970, R::a970);
+        port(ports, 0xbb3e, R::state30);
+        port(ports, 0xbbc4, R::state32);
+        port(ports, 0xbc3e, R::state34);
+        port(ports, 0xbd34, R::state36);
+        port(ports, 0xbdea, R::bdea);
     }
 
     private static int sw(int reg, int v) {
@@ -645,7 +650,7 @@ final class HeroHandlers {
                 d7 = 0;
                 int s1 = d1, sa0 = a0, sa1 = a1;
                 w8(a1 + 0x56, 0);
-                jump(0xbdea); // Stix leaves the hand
+                bdea(); // Stix leaves the hand
                 d1 = s1;
                 a0 = sa0;
                 a1 = sa1;
@@ -994,6 +999,11 @@ final class HeroHandlers {
             if (t > 0) {
                 return;
             }
+            ad18();
+        }
+
+        /** 0xAD18: end of the hurt animation: water, death, or back on the feet. */
+        void ad18() {
             if (r16(a0 + 0x10) == 0x14) {
                 d2 = sb(d2, r8(0x10aba));
                 if ((d2 & 0xff) != 0) {
@@ -1378,7 +1388,7 @@ final class HeroHandlers {
                 // 0xAA34
                 int s1 = d1, sa0 = a0, sa1 = a1;
                 w8(a1 + 0x56, 0);
-                jump(0xbdea);
+                bdea();
                 d1 = s1;
                 a0 = sa0;
                 a1 = sa1;
@@ -1954,6 +1964,291 @@ final class HeroHandlers {
             d3 = sw(d3, d3 + r16(a1 + 6));
             w16(0x17510, d2);
             w16(0x17512, d3);
+        }
+
+        // ---------------------------------------------------------------- states 30-36
+
+        /** 0xBB3E: Stix landing on the head. */
+        void state30() {
+            if ((d1 & 0xffff) != 0 && (short) d1 < 6) {
+                if (r8(a1 + 0x72) != 0) {
+                    d2 = 0xf;
+                    d3 = 0;
+                    sound();
+                    w32(a1 + 0x28, 0);
+                    d1 = 6;
+                    w8(a1 + 0x4c, 0xff);
+                    int s0 = d0, s1 = d1, sa0 = a0, sa1 = a1;
+                    d0 = 0x28;
+                    a5 = a1;
+                    jump(0xfb58);
+                    d0 = s0;
+                    d1 = s1;
+                    a0 = sa0;
+                    a1 = sa1;
+                    return;
+                }
+                int v = ~r8(a1 + 0x4c) & 0xff;
+                w8(a1 + 0x4c, v);
+                if ((v & 0x80) != 0) {
+                    return;
+                }
+                d1 = sw(d1, d1 ^ 6);
+                return;
+            }
+            w8(a1 + 0x4c, r8(a1 + 0x4c) + 1);
+            if ((byte) r8(a1 + 0x4c) < 2) {
+                return;
+            }
+            if ((d1 & 0xffff) == 6) {
+                d2 = 2;
+                d3 = 0;
+                sound();
+            }
+            w8(a1 + 0x4c, 0);
+            d1 = sw(d1, d1 + 2);
+            if ((short) d1 < 0x12) {
+                return;
+            }
+            d0 = sw(d0, r16(0x108b6));
+            if ((d0 & 0xffff) == 0 && r8(0x10aba) != 0) {
+                b31e();
+                return;
+            }
+            w16(a1 + 0x3a, 8);
+            w16(0x10ac8, 0);
+            a652();
+        }
+
+        /** 0xBBC4: thrown in the air by an object ($1112E: held). */
+        void state32() {
+            d2 = sb(d2, r8(0x1112e));
+            if ((d2 & 0xff) != 0) {
+                d1 = sw(d1, d1 + 2);
+                if ((short) d1 < 6) {
+                    return;
+                }
+                d1 = 0;
+                return;
+            }
+            if ((short) d1 < 6) {
+                d1 = 6;
+                d2 = 0x80000;
+                if (s16(a0 + 0x12) >= 0) {
+                    d2 = -d2;
+                }
+                w32(a1 + 0x28, d2);
+                w32(a1 + 0x2c, 0xfff90000);
+                w32(a1 + 0x5c, 0xe400);
+                d2 = 3;
+                d3 = 0;
+                sound();
+                return;
+            }
+            int v = ~r8(a1 + 0x4c) & 0xff;
+            w8(a1 + 0x4c, v);
+            if ((v & 0x80) != 0) {
+                return;
+            }
+            if ((d1 & 0xffff) == 8 && r8(a1 + 0x72) == 0) {
+                return;
+            }
+            d1 = sw(d1, d1 + 2);
+            if ((short) d1 < 0xe) {
+                return;
+            }
+            w32(a1 + 0x28, 0);
+            w16(a1 + 0x3a, 0);
+            if (r16(a0 + 0x10) == 0xc) {
+                w16(a0 + 0x10, 0);
+            }
+            ad18();
+        }
+
+        /** 0xF7E2: next value (-1, 0, 1) from the previous one (d0, flags from it) and d2. */
+        private void f7e2() {
+            int v = (short) d0, r = (short) d2;
+            if (v < 0) {
+                d0 = r < 0 ? 1 : 0;
+            } else if (v == 0) {
+                d0 = r >= 0 ? -1 : 1;
+            } else {
+                d0 = r >= 0 ? -1 : 0;
+            }
+        }
+
+        /** 0xBC3E: carried away (end of the level). */
+        void state34() {
+            int s = (short) d1;
+            if (s <= 6 && !(s == 6 && r8(0x11138) == 0) && r16(a1 + 0x4c) == 0) {
+                // random sound among 3
+                a2 = 0x10894;
+                d0 = r32(a2);
+                a2 += 4;
+                d2 = r32(a2);
+                d2 = sw(d2, d2 ^ d0);
+                int w = d2 & 0xffff;
+                d2 = sw(d2, (w >>> 1) | (w << 15));
+                d0 = sw(d0, d0 ^ d2);
+                d0 = (d0 << 16) | (d0 >>> 16);
+                w32(a2, d0);
+                a2 -= 4;
+                w32(a2, d2);
+                d0 = sw(d0, r16(0xbd26));
+                f7e2();
+                w16(0xbd26, d0);
+                d0 = sw(d0, d0 + 3);
+                d2 = sw(d2, d0);
+                d3 = 0;
+                sound();
+            }
+            d2 = r32(a1 + 0x28);
+            d3 = r32(a1 + 0x2c);
+            w32(a1 + 2, r32(a1 + 2) + d2);
+            w32(a1 + 6, r32(a1 + 6) + d3);
+            if (r8(0x11138) == 0) {
+                int v = ~r8(a1 + 0x4c) & 0xff;
+                w8(a1 + 0x4c, v);
+                if ((v & 0x80) != 0) {
+                    return;
+                }
+            } else {
+                w16(a1 + 0x4c, r16(a1 + 0x4c) + 1);
+                d2 = sw(d2, r16(a1 + 0x4c));
+                if ((d2 & 0xffff) != r16(0xbccc + (short) d1)) {
+                    return;
+                }
+                w16(a1 + 0x4c, 0);
+            }
+            // 0xBCA8
+            if ((short) d1 < 0x18) {
+                d1 = sw(d1, d1 + 2);
+                return;
+            }
+            if (r8(0x1112f) != 0) {
+                w8(0x1112f, 1);
+                return;
+            }
+            if ((short) d1 < 0x22) {
+                d1 = sw(d1, d1 + 2);
+                return;
+            }
+            if ((d1 & 0xffff) == 0x22) {
+                d2 = 4;
+                d3 = 0;
+                sound();
+                d1 = sw(d1, d1 + 2);
+                return;
+            }
+            w32(a1 + 0x5c, 0xe400);
+            w32(a1 + 0x60, 0x10000);
+            w16(a1 + 0x3a, 0);
+            w8(a1 + 0x1aa, 0);
+            w16(0x10ac8, 0);
+            a652();
+        }
+
+        /** 0xBD34: a scripted walk (frames timed by the table 0xBD90). */
+        void state36() {
+            w32(a1 + 0x28, 0);
+            w16(a1 + 0x4c, r16(a1 + 0x4c) + 1);
+            d2 = sw(d2, r16(a1 + 0x4c));
+            d3 = sw(d3, d1);
+            d3 = sw(d3, (d3 & 0xffff) >>> 1);
+            if ((d2 & 0xff) != r8(0xbd90 + (short) d3)) {
+                return;
+            }
+            w16(a1 + 0x4c, 0);
+            int s = (short) d1;
+            if (s == 0x10) {
+                a3 = 0xbd28;
+                d2 = 0xe;
+            } else if (s > 0x1a) {
+                w8(0x10abc, 0xff);
+                return;
+            } else if (s == 0x1a) {
+                a3 = 0xbd2c;
+                d2 = 0xc;
+            } else {
+                d1 = sw(d1, d1 + 2);
+                return;
+            }
+            a2 = 0xbda1;
+            w32(a2 + 0x25, a3);
+            d3 = 4;
+            if ((r8(a1 + 0x55) & 0x80) == 0) {
+                d3 = 8;
+            }
+            w8(a2, d3);
+            a2++;
+            w16(a2, d2);
+            a2 += 2;
+            a652();
+        }
+
+        // ---------------------------------------------------------------- 0xBDEA
+
+        /** 0xBDEA: Stix leaves Bubba's hand (d7 = new Stix state). */
+        void bdea() {
+            a0 = 0x10988;
+            a1 = 0x10910;
+            a2 = a0 + 0x14;
+            w16(a2, 0xfff8);
+            w16(a2 + 2, 0);
+            w16(a2 + 4, 0x10);
+            w16(a2 + 6, 8);
+            a2 += 8;
+            w32(0xbdd2, 0);
+            d0 = s16(0xbdb8); // movem.w $BDB8(pc) (shown $BDB6 by the disassembly)
+            d1 = s16(0xbdba);
+            d2 = 4;
+            d3 = 0xc0000;
+            d4 = 0;
+            boolean left = (r8(a1 + 0x55) & 0x80) != 0;
+            w8(a0 + 0x30, left ? 0xff : 0);
+            if (left) {
+                d0 = sw(d0, -d0);
+                d2 = 0xc;
+                d3 = -d3;
+            }
+            d0 = ((d0 << 16) | (d0 >>> 16)) & 0xffff0000;
+            d1 = ((d1 << 16) | (d1 >>> 16)) & 0xffff0000;
+            a2 = a0 + 0x28;
+            d5 = 8;
+            if (r16(0xbdb2) == 0x10) {
+                d2 = 0;
+                d3 = 0;
+                d4 = 0xfff40000;
+                d5 = 4;
+                a2 = a0 + 0x2c;
+            }
+            d0 += r32(a1 + 2);
+            d1 += r32(a1 + 6);
+            w32(a0 + 2, d0);
+            w32(a0 + 6, d1);
+            w16(a0 + 0x9c, d7);
+            d0 = sw(d0, d5);
+            if ((d7 & 0xffff) == 6) {
+                int[] regs = c.saveRegisters();
+                c.d[0] = 0xb;
+                c.d[1] = 0;
+                c.a[5] = a0;
+                Calls.call(c, 0x7bc8);
+                c.restoreRegisters(regs);
+                d0 = 0xfffffffb;
+                d3 = 0;
+                d4 = 0;
+                w8(a0 + 0x30, ~r8(a0 + 0x30));
+                d2 = 0x10;
+                d2 = sb(d2, 0x10 - r8(a0 + 0x30));
+            } else {
+                w32(a0 + 0x44, a2);
+            }
+            w16(a0 + 0x34, d0);
+            w16(a0 + 0xa, d2);
+            w32(a0 + 0x28, d3);
+            w32(a0 + 0x2c, d4);
+            w8(0xbdd7, (d7 & 0xffff) == 0 ? 0xff : 0);
         }
 
         // ---------------------------------------------------------------- state 0: standing

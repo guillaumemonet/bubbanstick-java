@@ -242,12 +242,12 @@ final class Stage3Natives {
     // ---------------------------------------------------------------- misc
 
     /**
-     * $2B6A: +$44 = $FF when bit 1 of $17509 is set and the point ($1098A, $1098E) is inside the
+     * $2B6A: +$44 = $FF when bit 1 of $1750B is set and the point ($1098A, $1098E) is inside the
      * object's box (x-8-15 .. x-8 horizontally, above y+$16, within +$1A).
      */
     static int heroInside(NativeContext c, LevelObject o, int a4) {
         o.setByte(0x44, 0);
-        if ((c.ram.read8(0x17509) & 2) == 0) {
+        if ((c.ram.read8(0x1750b) & 2) == 0) {
             return a4;
         }
         int a = (short) (o.word(0x02) - 8), b = (short) c.ram.read16(0x1098a);

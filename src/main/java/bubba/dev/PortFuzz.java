@@ -43,6 +43,15 @@ public final class PortFuzz {
             c.restoreRegisters(regs);
             if (routine >= 0xa318 && routine < 0xbea8) {
                 setupHero(c, m, rnd, routine);
+            } else if (routine >= 0x11000 && routine != 0x12c18) { // an object native: flags, held object
+                int n = m.read16(0x17514);
+                int o = n > 0 ? m.read32(0x17516 + 4 * rnd.nextInt(n)) : 0x17ed8;
+                c.a[5] = o;
+                c.a[4] = 0x12000 + 2 * rnd.nextInt(0x800);
+                m.write8(0x1750b, rnd.nextInt(256));
+                m.write32(0x17506, rnd.nextBoolean() ? o : 0);
+                m.write32(0x1098a, (m.read16(o + 2) + rnd.nextInt(64) - 32) << 16);
+                m.write32(0x1098e, (m.read16(o + 6) + rnd.nextInt(64) - 32) << 16);
             } else if (routine == 0x129ee) { // stage 5 callback: sequences
                 m.write8(0x12d52, new int[]{0, 0, 1, 0x80}[rnd.nextInt(4)]);
                 m.write8(0x12d53, new int[]{0, 1, 0x80}[rnd.nextInt(3)]);

@@ -263,9 +263,9 @@ final class Stage2Natives {
 
     // ------------------------------------------------------------------ other types
 
-    /** $5174 (type 146): +$44 = $FF when bit 6 of $17509 is set and (long $17506) is this object. */
+    /** $5174 (type 146): +$44 = $FF when bit 6 of $1750B is set and (long $17506) is this object. */
     static int heldByHero(NativeContext c, LevelObject o, int a4) {
-        boolean held = (c.ram.read8(0x17509) & 0x40) != 0 && c.ram.read32(0x17506) == o.base;
+        boolean held = (c.ram.read8(0x1750b) & 0x40) != 0 && c.ram.read32(0x17506) == o.base;
         o.setByte(0x44, held ? 0xff : 0);
         return a4;
     }

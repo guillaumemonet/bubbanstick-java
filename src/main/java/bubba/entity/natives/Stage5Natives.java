@@ -93,11 +93,11 @@ final class Stage5Natives {
     }
 
     /**
-     * $34B4 (type 90): if bit 5 of byte $17509 is set and the object is the one whose address is
+     * $34B4 (type 90): if bit 5 of byte $1750B is set and the object is the one whose address is
      * the long at $17506, jump to script $3466; else continue.
      */
     static int heldCheck(NativeContext c, LevelObject o, int a4) {
-        if ((c.ram.read8(0x17509) & 0x20) != 0 && c.ram.read32(0x17506) == o.base) {
+        if ((c.ram.read8(0x1750b) & 0x20) != 0 && c.ram.read32(0x17506) == o.base) {
             return SET + 0x3466;
         }
         return a4;

@@ -22,6 +22,7 @@ final class SetCode {
     static Map<Integer, Ports.Port> forLevel(String fileId) {
         Map<Integer, Ports.Port> m = new HashMap<>();
         levelPorts(fileId, m);
+        startRoutines(fileId, m);
         if (fileId.equals("1")) {
             m.put(0x11ce0, new Ports.Port() {
                 @Override
@@ -677,5 +678,224 @@ final class SetCode {
         a[0] = 0x12d57;
         m.write8(a[0], 0);
         Calls.call(c, 0x129a2);
+    }
+
+    // ------------------------------------------------------------------ level start / respawn routines
+
+    /**
+     * Copy protection of the set code: 5 longs at addr must xor to {@code expected}, else the
+     * return address is shifted by -1 (the game crashes). The movem.l source is PC-relative:
+     * the disassembly shows it 2 bytes too low.
+     */
+    private static void check(M68k c, int addr, int expected) {
+        GameMemory m = c.mem;
+        int[] d = c.d;
+        for (int k = 0; k < 5; k++) {
+            d[k] = m.read32(addr + 4 * k);
+        }
+        d[0] ^= d[1];
+        d[0] ^= d[2];
+        d[0] ^= d[3];
+        d[0] ^= d[4];
+        d[0] = sb(d[0], d[0] != expected ? 0xff : 0);
+        m.write8(c.a[7] + 3, m.read8(c.a[7] + 3) + (d[0] & 0xff));
+    }
+
+    /** Start of the block animation of callback {@code routine} (a0 = $10B1A, timer set after). */
+    private static void startCallback(M68k c, int routine) {
+        c.a[0] = 0x10b1a;
+        c.a[1] = -routine;
+        c.d[0] = 0;
+        c.d[1] = 0;
+        Calls.call(c, 0xc67a);
+    }
+
+    static void startRoutines(String fileId, Map<Integer, Ports.Port> m) {
+        switch (fileId) {
+            case "1" -> {
+                add(m, 0x11caa, c -> {
+                    GameMemory g = c.mem;
+                    c.d[0] = sb(c.d[0], g.read8(0x10a42));
+                    if ((c.d[0] & 0xff) != 0) {
+                        Calls.call(c, 0x13636);
+                    }
+                    c.a[0] = 0x10ac4;
+                    g.write16(c.a[0], 0x19);
+                    c.a[0] = 0x11e3a;
+                    g.write8(c.a[0], 0);
+                    startCallback(c, 0x11ce0);
+                    g.write16(c.a[6] - 0x16, 0x32);
+                });
+                add(m, 0x12346, c -> check(c, 0x13e96, 0xb043ac46));
+            }
+            case "5" -> {
+                add(m, 0x12612, c -> {
+                    GameMemory g = c.mem;
+                    int[] a = c.a;
+                    c.d[0] = sb(c.d[0], g.read8(0x108e8));
+                    if ((c.d[0] & 0xff) == 0) {
+                        a[0] = 0x12c4a;
+                        g.write32(a[0], 0xffffffff);
+                        a[0] += 4;
+                        for (int i = 0; i < 6; i++) {
+                            g.write8(a[0]++, 0);
+                        }
+                    }
+                    a[0] = 0x10906;
+                    g.write32(a[0], g.read32(a[0]) - 0x1e00000);
+                    g.write32(a[0] - 0x28, g.read32(a[0] - 0x28) - 0x1e00000);
+                    a[2] = g.read32(0x10888);
+                    a[1] = 0x10b0c;
+                    g.write32(a[1], a[2]);
+                    a[1] += 4;
+                    a[2] += 0x2148;
+                    g.write32(a[1], a[2]);
+                    a[1] += 4;
+                    startCallback(c, 0x12c12);
+                });
+                add(m, 0x1258c, c -> { // the map half chosen by $10A42, sound filter, check
+                    GameMemory g = c.mem;
+                    int[] d = c.d, a = c.a;
+                    a[0] = 0x12c55;
+                    for (int i = 0; i < 7; i++) {
+                        g.write8(a[0]++, 0);
+                    }
+                    g.write8(a[0]++, g.read8(0x12c51));
+                    for (int i = 0; i < 9; i++) {
+                        g.write8(a[0]++, 0);
+                    }
+                    a[1] = 0x108e2;
+                    g.write8(a[1], 0);
+                    d[1] = 0;
+                    d[2] = sw(d[2], 0x80);
+                    a[0] = 0x10b0c;
+                    d[0] = sw(d[0], g.read16(0x10a42));
+                    if ((short) d[0] >= 0) {
+                        a[0] += 4;
+                        d[1] = 2;
+                        d[2] = sw(d[2], d[2] * 2);
+                    }
+                    a[2] = g.read32(0x108ea);
+                    if ((g.read8(a[2] + 0x6ae) & 0x80) != 0) {
+                        g.write16(a[1] + 2, d[2]);
+                        g.write8(0xbfe001, g.read8(0xbfe001) & 0xfd); // CIA: audio filter
+                        g.write8(0xbfe001, g.read8(0xbfe001) | (d[1] & 0xff));
+                    }
+                    a[1] = 0x10888;
+                    g.write32(a[1], g.read32(a[0]));
+                    check(c, 0x15f40, 0xb043cf1c);
+                });
+            }
+            case "3" -> add(m, 0x11376, c -> {
+                c.a[0] = 0x10ac4;
+                c.mem.write16(c.a[0], 0x19);
+                c.mem.write16(0x12d26 - 0x242c, 0x10);
+                startCallback(c, 0x12d26);
+            });
+            case "4" -> {
+                add(m, 0x12566, c -> {
+                    c.mem.write8(0x12586 + 0x71, 0);
+                    c.mem.write16(0x12586 - 0x1c8c, 0x10);
+                    startCallback(c, 0x12586);
+                });
+                add(m, 0x12540, c -> {
+                    c.a[0] = 0x10ad4;
+                    c.mem.write32(c.a[0], 0x03060700);
+                    check(c, 0x14720, 0xb043b4fc);
+                });
+            }
+            case "6" -> {
+                add(m, 0x12386, c -> {
+                    c.d[0] = sb(c.d[0], c.mem.read8(0x10a43));
+                    if ((c.d[0] & 0xff) != 0) {
+                        Calls.call(c, 0x16d2e);
+                    }
+                    s5Water(c);
+                    startCallback(c, 0x129ee);
+                });
+                add(m, 0x137f8, SetCode::s5Water);
+                add(m, 0x129a2, SetCode::s5Blocks);
+                add(m, 0x123aa, c -> {
+                    GameMemory g = c.mem;
+                    int[] a = c.a;
+                    a[1] = 0x108fa;
+                    g.write32(a[1], g.read32(0x1114a));
+                    g.write32(a[1] + 8, g.read32(0x1114e));
+                    a[0] = 0x10a66;
+                    g.write8(a[0], 0);
+                    g.write8(a[0] + 0x22ec, 0);
+                    g.write8(a[0] + 0x22ef, 0);
+                    g.write8(a[0] + 0x22ee, 0);
+                    g.write8(a[0] + 0x22ed, 0);
+                    g.write8(a[0] + 0x22f1, 0);
+                    g.write32(a[0] + 0x22f8, 0);
+                    s5Blocks(c);
+                    a[0] = g.read32(0x1113e);
+                    g.write16(a[0] + 8, 0x704);
+                    g.write16(a[0] + 0xa, 0x806);
+                    g.write16(a[0] + 0x10, 0x900);
+                    g.write16(a[0] + 0x16, 0xa60);
+                    check(c, 0x16df2, 0xb043dda2);
+                    // 0x1380E
+                    a[0] = 0x10a60;
+                    g.write16(a[0], 0x40);
+                    a[0] += 2;
+                    g.write16(a[0], g.read16(0x12d58));
+                    g.write32(a[0] - 0x1c6, g.read32(0x12d5a));
+                });
+            }
+            default -> {
+            }
+        }
+    }
+
+    /** Stage 5, $137F8. */
+    static void s5Water(M68k c) {
+        GameMemory g = c.mem;
+        c.a[0] = 0x10a62;
+        g.write16(c.a[0] + 0x22f6, g.read16(c.a[0]));
+        g.write16(c.a[0], 0);
+        g.write32(c.a[0] + 0x22f8, g.read32(0x1089c));
+        g.write32(c.a[0] - 0x1c6, 0);
+    }
+
+    /** Stage 5, $129A2: graphics pointers of 16 + 4 * 8 blocks from the list $1290C. */
+    static void s5Blocks(M68k c) {
+        GameMemory g = c.mem;
+        int[] d = c.d, a = c.a;
+        a[0] = 0x1290c;
+        a[1] = g.read32(0x10890);
+        a[2] = 0x10e4c;
+        a[3] = g.read32(0x1088c);
+        d[0] = g.read16(a[2]);
+        a[2] += 2;
+        a[4] = a[1] + 2 + d[0];
+        for (int i = 0; i < 16; i++) {
+            d[3] = g.read16(a[0]);
+            a[0] += 2;
+            d[3] <<= 7;
+            a[5] = a[3] + d[3];
+            g.write32(a[4], a[5]);
+            a[4] += 4;
+        }
+        d[2] = 0xffff;
+        d[1] = 3;
+        for (int k = 0; k < 4; k++) {
+            d[0] = sw(d[0], g.read16(a[2]));
+            a[2] += 2;
+            a[4] = a[1] + 2 + d[0];
+            for (int i = 0; i < 8; i++) {
+                d[3] = g.read16(a[0]);
+                a[0] += 2;
+                d[3] <<= 7;
+                a[5] = a[3] + d[3];
+                g.write32(a[4], a[5]);
+                a[4] += 4;
+                g.write32(a[4], a[5]);
+                a[4] += 4;
+            }
+            d[2] = 0xffff;
+            d[1] = sw(d[1], d[1] - 1);
+        }
     }
 }

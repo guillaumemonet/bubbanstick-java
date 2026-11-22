@@ -741,6 +741,19 @@ final class SetCode {
                     g.write16(c.a[6] - 0x16, 0x32);
                 });
                 add(m, 0x12346, c -> check(c, 0x13e96, 0xb043ac46));
+                add(m, 0x13636, c -> { // second part of the map: 10 block graphics copied, 2 blocks solid
+                    blockCopy(c, 0x11800, 0x1d80, 0x100a);
+                    GameMemory g = c.mem;
+                    c.a[0] = 0x10f18;
+                    c.a[1] = g.read32(0x10890);
+                    c.d[1] = 2;
+                    for (int i = 0; i < 2; i++) {
+                        c.d[2] = g.read16(c.a[0]);
+                        c.a[0] += 2;
+                        g.write16(c.a[1] + c.d[2], g.read16(c.a[1] + c.d[2]) | 2);
+                    }
+                    c.d[0] = 0xffff;
+                });
             }
             case "5" -> {
                 add(m, 0x12612, c -> {
@@ -828,6 +841,17 @@ final class SetCode {
                     startCallback(c, 0x129ee);
                 });
                 add(m, 0x137f8, SetCode::s5Water);
+                add(m, 0x16d2e, c -> { // 14 block graphics copied, 2 blocks solid
+                    blockCopy(c, 0x13380, 0x3300, 0x100e);
+                    GameMemory g = c.mem;
+                    c.a[0] = 0x10f2a;
+                    c.d[1] = 2;
+                    c.a[1] = g.read32(0x10890);
+                    c.d[2] = g.read16(c.a[0]);
+                    g.write16(c.a[1] + c.d[2], g.read16(c.a[1] + c.d[2]) | 2);
+                    c.d[2] = g.read16(c.a[0] + 0xe);
+                    g.write16(c.a[1] + c.d[2], g.read16(c.a[1] + c.d[2]) | 2);
+                });
                 add(m, 0x129a2, SetCode::s5Blocks);
                 add(m, 0x123aa, c -> {
                     GameMemory g = c.mem;
@@ -861,6 +885,22 @@ final class SetCode {
             default -> {
             }
         }
+    }
+
+    /**
+     * Blitter copy A -> D of block graphics (BLTCON $09F00000, masks $FFFFFFFF, modulos 0):
+     * source = graphics + {@code src}, destination {@code back} bytes before. The custom chip
+     * writes have no effect in this memory: the copy is kept as slot redirections for the
+     * renderer ({@link GameMemory#blockGfx}), like the block animations.
+     */
+    private static void blockCopy(M68k c, int src, int back, int bltsize) {
+        GameMemory g = c.mem;
+        c.a[1] = 0xdff000;
+        c.d[0] = 0;
+        c.a[0] = g.read32(0x1088c) + src;
+        int from = c.a[0];
+        c.a[0] -= back;
+        BlockAnims.blit(g, from, c.a[0], bltsize);
     }
 
     /** Stage 5, $137F8. */

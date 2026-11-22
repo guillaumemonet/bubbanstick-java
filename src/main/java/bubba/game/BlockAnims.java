@@ -99,7 +99,7 @@ final class BlockAnims {
     }
 
     /** Blit A -> D, one word wide, modulos 0: (size >> 6) words copied. */
-    private static void blit(GameMemory m, int src, int dst, int bltsize) {
+    static void blit(GameMemory m, int src, int dst, int bltsize) {
         int h = bltsize >> 6 & 0x3ff, w = bltsize & 0x3f;
         int bytes = (h == 0 ? 1024 : h) * (w == 0 ? 64 : w) * 2;
         int s = src - 0x80000, d = dst - 0x80000;

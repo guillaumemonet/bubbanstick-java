@@ -23,6 +23,7 @@ final class SetCode {
         Map<Integer, Ports.Port> m = new HashMap<>();
         levelPorts(fileId, m);
         startRoutines(fileId, m);
+        LevelNatives.register(fileId, m);
         if (fileId.equals("1")) {
             m.put(0x11ce0, new Ports.Port() {
                 @Override

@@ -386,7 +386,7 @@ final class ObjectLife {
             c.z = false;
             c.v = false;
             c.c = false;
-            c.a[5] = NEW + 2; // where the allocator leaves a5 on failure: irrelevant to callers
+            c.a[5] = NEW; // the allocator fails before its (a5)+
             return;
         }
         m.write16(o, 1);

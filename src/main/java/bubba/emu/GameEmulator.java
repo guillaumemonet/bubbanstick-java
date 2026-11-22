@@ -164,9 +164,54 @@ public final class GameEmulator {
         }
         ram.write8(0x8269, joy);
         cpu.a[7] = GameMemory.STACK_TOP - 0x100;
+        boolean go;
+        if (bubba.game.Ports.VERIFY) {
+            go = verifiedFrame();
+        } else {
+            go = bubba.game.MainLoop.frame(cpu); // the main loop in Java
+        }
+        ended = !go;
+        return go;
+    }
+
+    private boolean mainLoopReported;
+
+    /** -Dbubba.verifyPorts: the original main loop and the Java one from the same state. */
+    private boolean verifiedFrame() {
+        byte[] before = ram.snapshot();
+        int[] regs = cpu.saveRegisters();
         int stop = cpu.runUntil(MAIN_LOOP, new int[]{MAIN_LOOP, LEVEL_EXIT}, MAX_STEPS);
-        ended = stop == LEVEL_EXIT;
-        return !ended;
+        boolean origGo = stop != LEVEL_EXIT;
+        byte[] orig = ram.snapshot();
+        int[] origRegs = cpu.saveRegisters();
+        ram.restore(before);
+        cpu.restoreRegisters(regs);
+        boolean go = bubba.game.MainLoop.frame(cpu);
+        int diff = ram.firstDifference(orig);
+        int bad = -1;
+        int[] mine = cpu.saveRegisters();
+        for (int r = 0; r < 15 && go && origGo; r++) {
+            if (mine[r] != origRegs[r]) {
+                bad = r;
+                break;
+            }
+        }
+        int[] st = bubba.game.Ports.STATS.computeIfAbsent(MAIN_LOOP, k -> new int[2]);
+        st[0]++;
+        if (diff >= 0 || bad >= 0 || go != origGo) {
+            st[1]++;
+            if (!mainLoopReported) {
+                mainLoopReported = true;
+                System.err.printf("MAIN LOOP differs: memory $%X (before %02X 68k %02X java %02X)%s%s%n", diff,
+                        diff >= 0 ? before[diff] & 0xff : 0, diff >= 0 ? orig[diff] & 0xff : 0, diff >= 0 ? ram.read8(diff) : 0,
+                        bad >= 0 ? String.format(", register %d 68k %X / java %X", bad, origRegs[bad], mine[bad]) : "",
+                        go != origGo ? ", level end" : "");
+            }
+            ram.restore(orig);
+            cpu.restoreRegisters(origRegs);
+            return origGo;
+        }
+        return go;
     }
 
     /** The end-of-level flag (item, code 0xF7C8) or the exit of the main loop. */

@@ -50,6 +50,11 @@ final class HeroHandlers {
         port(ports, 0xa706, R::state06);
         port(ports, 0xa9f4, R::state08);
         port(ports, 0xaa88, R::state0a);
+        port(ports, 0xabe6, R::state0c);
+        port(ports, 0xacae, R::state0e);
+        port(ports, 0xacc6, R::state10);
+        port(ports, 0xad08, R::state12);
+        port(ports, 0xadde, R::adde);
     }
 
     private static int sw(int reg, int v) {
@@ -731,6 +736,336 @@ final class HeroHandlers {
             w32(a0 + 2, d2);
             d0 = 0xc;
             setState();
+        }
+
+        // ---------------------------------------------------------------- state C: crouching
+
+        /** 0xABE6. */
+        void state0c() {
+            w8(a1 + 0x6c, 0);
+            if (r8(a1 + 0x72) == 0) {
+                a6a8();
+                return;
+            }
+            if ((d1 & 0xffff) != 0) {
+                boolean low = (short) d1 < 6;
+                w8(a1 + 0x5b, low ? 0xff : 0);
+                if (low) {
+                    // 0xAC4C: getting down
+                    if (r32(a1 + 0x28) != 0) {
+                        d2 = r32(a0 + 2);
+                        w32(a1 + 0x28, r32(a1 + 0x28) - d2);
+                    }
+                    int v = ~r8(a1 + 0x4c) & 0xff;
+                    w8(a1 + 0x4c, v);
+                    if ((v & 0x80) != 0) {
+                        return;
+                    }
+                    d1 = sw(d1, d1 - 2);
+                    int t = (short) (r16(a0 + 6) - 1);
+                    w16(a0 + 6, t);
+                    if (t > 0) {
+                        return;
+                    }
+                    d1 = 6;
+                    state0c();
+                    return;
+                }
+            }
+            if (!down() && !ceiling()) {
+                // 0xAC8A: standing up
+                w8(a1 + 0x5b, 0xff);
+                w32(a1 + 0x28, 0);
+                d1 = 0x10;
+                int t = (short) (r16(a0) - 1);
+                w16(a0, t);
+                if (t >= 0) {
+                    return;
+                }
+                w16(a1 + 0x16, 0xffc0);
+                w16(a1 + 0x1a, 0x40);
+                // the original loads the joystick into the condition codes, then these moves clear
+                // C: the jump branch (0xACAA) is never taken
+                a652();
+                return;
+            }
+            if (left()) {
+                if ((r8(a1 + 0x55) & 0x80) == 0) {
+                    ac42();
+                    return;
+                }
+                w32(a1 + 0x28, 0xfffe0000);
+            } else if (right()) {
+                if ((r8(a1 + 0x55) & 0x80) != 0) {
+                    ac42();
+                    return;
+                }
+                w32(a1 + 0x28, 0x20000);
+            } else {
+                w32(a1 + 0x28, 0);
+                d1 = 0xe;
+                return;
+            }
+            // 0xAC6E: crawling
+            w8(a1 + 0x6c, 0xff);
+            w8(a1 + 0x4c, r8(a1 + 0x4c) + 1);
+            if ((byte) r8(a1 + 0x4c) < 3) {
+                return;
+            }
+            w8(a1 + 0x4c, 0);
+            d1 = sw(d1, d1 + 2);
+            if ((short) d1 < 0xe) {
+                return;
+            }
+            d1 = 6;
+        }
+
+        private void ac42() {
+            w32(a1 + 0x28, 0);
+            d1 = 4;
+            a540();
+        }
+
+        /**
+         * 0xAAE4: something above Bubba's head (map blocks with bit 0 on the 1 or 2 columns, or a
+         * solid object)? Returns true when blocked (Z clear in the original).
+         */
+        private boolean ceiling() {
+            d2 = r32(a1 + 6) + r32(a1 + 0x2c);
+            d2 = (d2 << 16) | (d2 >>> 16);
+            d2 = sw(d2, d2 - 0x40);
+            d2 = sw(d2, ((short) d2 >> 4));
+            d5 = sw(d5, r16(0x10a48));
+            d2 = (d2 & 0xffff) * (d5 & 0xffff);
+            d3 = sw(d3, r16(a1 + 2) + r16(a1 + 0x14));
+            d4 = sw(d4, d3);
+            d3 = sw(d3, ((short) d3 >> 4));
+            d2 = sw(d2, d2 + d3);
+            d2 = sw(d2, d2 + d3);
+            d3 = 1;
+            d4 = sw(d4, d4 & 0xf);
+            if ((d4 & 0xffff) != 0) {
+                d3 = 2;
+            }
+            a2 = d2 + r32(0x10888);
+            a3 = r32(0x10890);
+            while (true) {
+                d2 = sw(d2, r16(a2));
+                a2 += 2;
+                if ((r8(a3 + d2 + 1) & 1) != 0) {
+                    return true;
+                }
+                d2 = sw(d2, r16(a2 - 2 + (short) d5));
+                if ((r8(a3 + d2 + 1) & 1) != 0) {
+                    return true;
+                }
+                d3 = sw(d3, d3 - 1);
+                if ((d3 & 0xffff) == 0xffff) {
+                    break;
+                }
+            }
+            d2 = sw(d2, r16(a1 + 0x14));
+            d3 = 0xffffffc0;
+            d4 = sw(d4, r16(a1 + 0x18));
+            d5 = 0x20;
+            d2 = sw(d2, d2 + r16(a1 + 2));
+            d3 = sw(d3, d3 + r16(a1 + 6));
+            d4 = sw(d4, d4 + d2);
+            d5 = sw(d5, d5 + d3);
+            a2 = 0x1767a;
+            d7 = sw(d7, r16(a2));
+            a2 += 2;
+            while (true) {
+                d7 = sw(d7, d7 - 1);
+                if ((d7 & 0xffff) == 0xffff) {
+                    break;
+                }
+                a3 = r32(a2);
+                a2 += 4;
+                d6 = sw(d6, r16(a3 + 2) + r16(a3 + 0x14));
+                if ((short) d4 <= (short) d6) {
+                    continue;
+                }
+                d6 = sw(d6, d6 + r16(a3 + 0x18));
+                if ((short) d2 >= (short) d6) {
+                    continue;
+                }
+                d6 = sw(d6, r16(a3 + 6) + r16(a3 + 0x16));
+                if ((short) d5 <= (short) d6) {
+                    continue;
+                }
+                d6 = sw(d6, d6 + r16(a3 + 0x1a));
+                if ((short) d3 >= (short) d6) {
+                    continue;
+                }
+                if ((short) d6 > (short) d5) {
+                    continue;
+                }
+                d3 = 1;
+                return true;
+            }
+            d3 = 0;
+            return false;
+        }
+
+        // ---------------------------------------------------------------- states E / 10
+
+        /** 0xACAE: turning round, then standing. */
+        void state0e() {
+            int v = ~r8(a1 + 0x4c) & 0xff;
+            w8(a1 + 0x4c, v);
+            if ((v & 0x80) != 0) {
+                return;
+            }
+            w8(a1 + 0x55, ~r8(a1 + 0x55));
+            a652();
+        }
+
+        /** 0xACC6: looking up (up held). */
+        void state10() {
+            if (r8(a1 + 0x72) == 0) {
+                a6a8();
+                return;
+            }
+            if (!up()) {
+                a652();
+                return;
+            }
+            boolean turn;
+            if (left()) {
+                if ((d1 & 0xffff) != 0) {
+                    acf2();
+                    return;
+                }
+                turn = (r8(a1 + 0x55) & 0x80) == 0;
+            } else if (right()) {
+                if ((d1 & 0xffff) != 0) {
+                    acf2();
+                    return;
+                }
+                turn = (r8(a1 + 0x55) & 0x80) != 0;
+            } else {
+                turn = false;
+            }
+            if (turn) {
+                w8(a1 + 0x4c, 0);
+                d1 = 2;
+                return;
+            }
+            if ((d1 & 0xffff) == 0) {
+                return;
+            }
+            acf2();
+        }
+
+        private void acf2() {
+            int v = ~r8(a1 + 0x4c) & 0xff;
+            w8(a1 + 0x4c, v);
+            if ((v & 0x80) != 0) {
+                return;
+            }
+            w8(a1 + 0x55, ~r8(a1 + 0x55));
+            d1 = 0;
+        }
+
+        // ---------------------------------------------------------------- state 12: hurt
+
+        /** 0xAD08. */
+        void state12() {
+            int v = ~r8(a1 + 0x4c) & 0xff;
+            w8(a1 + 0x4c, v);
+            if ((v & 0x80) != 0) {
+                return;
+            }
+            d1 = sw(d1, d1 + 2);
+            int t = (short) (r16(a0) - 1);
+            w16(a0, t);
+            if (t > 0) {
+                return;
+            }
+            if (r16(a0 + 0x10) == 0x14) {
+                d2 = sb(d2, r8(0x10aba));
+                if ((d2 & 0xff) != 0) {
+                    jump(0xb300);
+                    return;
+                }
+            }
+            d2 = sb(d2, r8(a1 + 0x72) & r8(0x10aba));
+            if ((d2 & 0xff) != 0) {
+                jump(0xb31e);
+                return;
+            }
+            w16(0x10ac8, 0);
+            int prev = r16(a0 + 0x10);
+            if (prev == 0x16 || prev == 0x14) {
+                d0 = sw(d0, r16(a1 + 6) - 0x30 - r16(0x10a5e));
+                if ((short) d0 >= 0) {
+                    w16(0x10ac8, 0xe80);
+                    d1 = 2;
+                    if (r8(a1 + 0x56) == 0) {
+                        d1 = 0x10;
+                    }
+                    d0 = 0x14;
+                    setState();
+                    return;
+                }
+                w32(a1 + 0x5c, 0xe400);
+                w32(a1 + 0x60, 0x10000);
+                if (r8(a1 + 0x72) == 0) {
+                    adcc();
+                    return;
+                }
+                w16(a1 + 0x16, 0xffc0);
+                w16(a1 + 0x1a, 0x40);
+            }
+            prev = r16(a0 + 0x10);
+            boolean crouch = ((prev == 4 || prev == 8 || prev == 0x1a) && r16(a1 + 0x1a) == 0x20) || prev == 0xc;
+            if (crouch && r8(a1 + 0x72) != 0) {
+                ab94();
+                return;
+            }
+            if (r8(a1 + 0x72) != 0) {
+                a6ce();
+                return;
+            }
+            adcc();
+        }
+
+        private void adcc() {
+            d0 = 0x1078;
+            d1 = 2;
+            w8(a1 + 0x57, 0xff);
+            a67c();
+        }
+
+        // ---------------------------------------------------------------- 0xADDE: into the water
+
+        /** 0xADDE (from 0x9EFA), ends through the epilogue 0x9FD8 it pushed. */
+        void adde() {
+            w16(a1 + 0x16, 0xffe0);
+            w16(a1 + 0x1a, 0x20);
+            w16(0x10ac8, 0xe80);
+            d0 = r32(a1 + 0x28) >> 1;
+            d1 = r32(a1 + 0x2c) >> 2;
+            w32(a1 + 0x28, d0);
+            w32(a1 + 0x2c, d1);
+            w32(a1 + 0x5c, 0);
+            w32(a1 + 0x60, 0);
+            w8(a1 + 0x57, 0);
+            d1 = 0;
+            if (r8(a1 + 0x56) == 0) {
+                d1 = 0x10;
+            }
+            if (r8(a1 + 0x72) == 0 && r16(0xbda4) != 0x16) {
+                d2 = 8;
+                d3 = 0;
+                sound();
+            }
+            d0 = 0x14;
+            setState();
+            sync();
+            HeroStates.epilogue(c);
+            load();
         }
 
         // ---------------------------------------------------------------- state 0: standing

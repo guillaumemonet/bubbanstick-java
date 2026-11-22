@@ -30,7 +30,13 @@ public final class Coverage {
             GameEmulator emu = new GameEmulator(assets, LevelData.stage(assets, stage), 9, 6, null);
             java.util.Random r = new java.util.Random(stage);
             final int st = stage;
+            final bubba.cpu.M68k cpuRef = emu.cpu;
+            final int watch = Integer.parseInt(System.getProperty("coverage.watch", "-1"), 16);
             emu.cpu.trace = pc -> {
+                if (pc == watch) { // dev: who runs this original code
+                    System.out.printf("watch $%X: sp $%X -> %08X %08X %08X%n", pc, cpuRef.a[7],
+                            cpuRef.mem.read32(cpuRef.a[7]), cpuRef.mem.read32(cpuRef.a[7] + 4), cpuRef.mem.read32(cpuRef.a[7] + 8));
+                }
                 if (pc < 0x60000) {
                     all.add(pc);
                     if (pc >= bubba.cpu.GameMemory.SET_BASE + 0x1000) {

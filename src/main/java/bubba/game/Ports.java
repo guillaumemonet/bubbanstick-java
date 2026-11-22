@@ -40,6 +40,29 @@ public final class Ports {
         HeroContacts.register(PORTS);
         SolidObjects.register(PORTS);
         BlockAnims.register(PORTS);
+        PORTS.put(0xe292, new Port() { // zone +$54 entered once: script +$50 / animation +$36
+            @Override
+            public void run(M68k c) {
+                GameMemory m = c.mem;
+                int o = c.a[5];
+                c.a[0] = m.read32(o + 0x54);
+                boolean go = (m.read8(c.a[0] + 6) & 0x40) != 0;
+                if (!go) {
+                    int v = m.read8(c.a[0]);
+                    m.write8(c.a[0], v | 0x80);
+                    go = (v & 0x80) == 0;
+                }
+                if (go) {
+                    c.a[4] = m.read32(o + 0x50);
+                    m.write32(o + 0xc, m.read32(o + 0x36));
+                }
+            }
+
+            @Override
+            public int[] outputs() {
+                return new int[]{8, 12};
+            }
+        });
         PORTS.put(0x7956, new Port() { // clear the two screens
             @Override
             public void run(M68k c) {

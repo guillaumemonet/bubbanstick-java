@@ -65,6 +65,9 @@ public final class M68k {
             if (++steps > maxSteps) {
                 throw new IllegalStateException(String.format("68k: too many steps from $%05X (pc=$%05X)", addr, pc));
             }
+            if (trace != null) {
+                trace.accept(pc);
+            }
             step();
         }
     }

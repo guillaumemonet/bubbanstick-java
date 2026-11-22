@@ -11,10 +11,10 @@ import java.util.function.IntConsumer;
 /**
  * Runs the original game logic on the 68000 interpreter: one turn of the main loop (code 0x3AF0)
  * per logic frame - Bubba and Stix (0x9EFA, 0xD042, 0xBEA8...), objects (0xDEE0, 0xFEAA, 0xDCB6),
- * contacts (0xF5F6), camera, status values (0x872A). Java only feeds the joystick and draws what
- * the memory holds.
+ * contacts (0xF5F6), camera... Java only feeds the joystick and draws what the memory holds; the
+ * routines already ported run in Java ({@link bubba.game.Ports}).
  * <p>
- * Replaced by Java: the display routines (0x8470 BOBs, 0x539E hero sprite), the keyboard (0x79CE),
+ * Replaced by Java: the BOB display (0x8470), the keyboard (0x79CE),
  * the VBL waits, the sound calls (0x7BC8, reported to {@link #onSound}), file loading and the boot
  * allocations (buffers placed in spare memory), and the display part of the level start.
  */

@@ -23,7 +23,7 @@ public final class Assets {
     public Assets(Path root) {
         if (!Files.isDirectory(root)) {
             throw new IllegalStateException("Assets directory not found: " + root.toAbsolutePath()
-                    + " (run tools/extract_all.py, or set -Dbubba.assets=<dir>)");
+                    + " (set -Dbubba.assets=<dir>)");
         }
         this.root = root;
     }

@@ -28,3 +28,66 @@ run {
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
+
+jar {
+    manifest {
+        attributes 'Main-Class': application.mainClass
+    }
+}
+
+// ---------------------------------------------------------------- release (jpackage)
+// gradlew jpackageImage : application autonome (JRE inclus) dans build/jpackage/BubbaNStix
+// gradlew releaseZip    : la même, zippée dans build/distributions (à publier en release GitHub)
+// -PinstallerType=msi|exe|deb|rpm|dmg|pkg : installeur natif au lieu de l'image (WiX requis sous Windows)
+def appName = 'BubbaNStix'
+def jpackageDir = layout.buildDirectory.dir('jpackage')
+
+tasks.register('jpackageInput', Sync) {
+    from tasks.jar
+    into layout.buildDirectory.dir('jpackage-input')
+}
+
+tasks.register('jpackageImage', Exec) {
+    group = 'distribution'
+    description = 'Application autonome (JRE inclus) avec jpackage'
+    dependsOn 'jpackageInput'
+    def launcher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
+    def out = jpackageDir.get().asFile
+    def input = layout.buildDirectory.dir('jpackage-input').get().asFile
+    def jarName = tasks.jar.archiveFileName
+    def mainClass = application.mainClass
+    def version = project.version.toString()
+    def type = (project.findProperty('installerType') ?: 'app-image').toString()
+    def windows = System.getProperty('os.name').toLowerCase().contains('win')
+    doFirst {
+        out.deleteDir() // jpackage refuses an existing destination
+        def exe = new File(launcher.get().metadata.installationPath.asFile, 'bin/jpackage' + (windows ? '.exe' : ''))
+        def args = [exe.absolutePath,
+                    '--type', type,
+                    '--name', appName,
+                    '--app-version', version,
+                    '--vendor', 'bubba-java',
+                    '--description', "Remake Java de Bubba 'n' Stix (Amiga, Core Design 1994)",
+                    '--input', input.absolutePath,
+                    '--main-jar', jarName.get(),
+                    '--main-class', mainClass.get(),
+                    '--add-modules', 'java.desktop',
+                    '--jlink-options', '--strip-debug --no-man-pages --no-header-files',
+                    '--dest', out.absolutePath]
+        if (type != 'app-image' && windows) {
+            args += ['--win-menu', '--win-shortcut', '--win-dir-chooser']
+        }
+        commandLine args
+    }
+}
+
+tasks.register('releaseZip', Zip) {
+    group = 'distribution'
+    description = 'Image jpackage zippée, prête pour une release'
+    dependsOn 'jpackageImage'
+    def os = System.getProperty('os.name').toLowerCase()
+    def osName = os.contains('win') ? 'windows' : os.contains('mac') ? 'macos' : 'linux'
+    archiveFileName = "${appName}-${project.version}-${osName}-${System.getProperty('os.arch')}.zip"
+    destinationDirectory = layout.buildDirectory.dir('distributions')
+    from(jpackageDir.map { it.dir(appName) }) { into appName }
+}

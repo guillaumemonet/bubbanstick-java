@@ -2,17 +2,31 @@
 
 Remake fidèle du jeu Amiga **Bubba 'n' Stix** (Core Design, 1994), en Java pur.
 
-Le dépôt ne contient **aucun fichier du jeu original** : les graphismes, les sons, les musiques et
-le code sont extraits de vos propres images de disquettes.
+Le dépôt ne contient **aucun fichier du jeu original**. Au premier lancement, le jeu extrait
+lui-même les graphismes, les sons, les musiques et le code des deux disquettes, que vous devez
+fournir.
+
+<p align="center">
+  <img src="docs/screenshots/title.png" width="400" alt="Écran titre">
+</p>
+
+| | |
+|---|---|
+| ![Niveau 1 : la forêt](docs/screenshots/stage1.png) | ![Niveau 2 : la prison](docs/screenshots/stage2.png) |
+| **Niveau 1** : la forêt | **Niveau 2** : la prison |
+| ![Niveau 3 : la lave](docs/screenshots/stage3.png) | ![Niveau 4 : sous l'eau](docs/screenshots/stage4.png) |
+| **Niveau 3** : la lave | **Niveau 4** : sous l'eau |
+| ![Niveau 5 : le laboratoire](docs/screenshots/stage5.png) | ![Niveau 5 : la cage électrique](docs/screenshots/stage5b.png) |
+| **Niveau 5** : le laboratoire | **Niveau 5** : la cage électrique |
 
 ## Principe
 
 Le jeu est reconstruit routine par routine à partir du désassemblage de l'exécutable original
 (`Bubba`, 68000) :
 
-1. **Extraction.** Les outils d'extraction lisent les disquettes (système de fichiers AmigaDOS),
-   décompressent les fichiers (RNC ProPack 1 et 2, SPAK, NoisePacker) et convertissent tout en
-   formats courants : PNG, WAV, MOD et JSON.
+1. **Extraction** (paquet `bubba.extract`). Le jeu lit les disquettes (système de fichiers
+   AmigaDOS), décompresse les fichiers (RNC ProPack 1 et 2, SPAK, NoisePacker) et convertit tout
+   en formats courants : PNG, WAV, MOD et JSON.
 2. **Exécution.** Le moteur Java (fenêtre, boucle à 50 Hz, rendu, son) fait tourner la boucle de
    jeu originale. Ce qui n'est pas encore porté est exécuté par un petit interpréteur 68000
    (`bubba.cpu.M68k`).
@@ -51,33 +65,51 @@ que d'oracle de vérification pendant le développement.
 - **Code propre à chaque niveau** ;
 - **Clavier**.
 
-**À venir** : l'extraction aussi passe en Java, pour que le jeu lise directement les deux
-`.zip` au premier lancement.
+## Jouer
 
-## Prérequis
+1. **Télécharger le jeu** : l'archive de la [dernière release](../../releases) pour votre système
+   (`BubbaNStix-<version>-windows-amd64.zip`...). Java est inclus : rien d'autre à installer.
+2. **Récupérer les deux disquettes** du jeu original, au format TOSEC, par exemple sur Amiga
+   Museum :
+   - [Bubba 'n' Stix (1994)(Core)(Disk 1 of 2)[cr LTD].zip](https://amigamuseum.emu-france.info/Fichiers/ADF/B/Bubba%20'n'%20Stix%20(1994)(Core)(Disk%201%20of%202)%5bcr%20LTD%5d.zip)
+   - [Bubba 'n' Stix (1994)(Core)(Disk 2 of 2)[cr LTD].zip](https://amigamuseum.emu-france.info/Fichiers/ADF/B/Bubba%20'n'%20Stix%20(1994)(Core)(Disk%202%20of%202)%5bcr%20LTD%5d.zip)
+3. **Lancer** `BubbaNStix` (`BubbaNStix.exe` sous Windows).
 
-- **JDK 21** (Gradle le récupère au besoin grâce au wrapper)
-- les deux disquettes du jeu, au format TOSEC, disponibles par exemple sur Amiga Museum :
-  - [Bubba 'n' Stix (1994)(Core)(Disk 1 of 2)[cr LTD].zip](https://amigamuseum.emu-france.info/Fichiers/ADF/B/Bubba%20'n'%20Stix%20(1994)(Core)(Disk%201%20of%202)%5bcr%20LTD%5d.zip)
-  - [Bubba 'n' Stix (1994)(Core)(Disk 2 of 2)[cr LTD].zip](https://amigamuseum.emu-france.info/Fichiers/ADF/B/Bubba%20'n'%20Stix%20(1994)(Core)(Disk%202%20of%202)%5bcr%20LTD%5d.zip)
+Au premier lancement, le jeu cherche les disquettes (archives `.zip` ou images `.adf`) à côté de
+l'application, dans le dossier courant et dans Téléchargements. S'il ne les trouve pas, il les
+demande. Il en extrait ses données en quelques secondes, une seule fois, dans le dossier
+utilisateur :
 
-## Données du jeu
+| Système | Dossier |
+|---|---|
+| Windows | `%LOCALAPPDATA%\BubbaNStix` |
+| macOS | `~/Library/Application Support/BubbaNStix` |
+| Linux | `~/.local/share/bubbanstix` |
 
-Le jeu lit ses données (images, sons, musiques, niveaux, code original) dans un dossier
-`assets/`, par défaut `../assets`, ou celui donné par `-Dbubba.assets=<dossier>`.
+Les disquettes y sont aussi copiées (`disks/`), pour pouvoir refaire l'extraction sans les
+redemander. Supprimer ce dossier remet le jeu à zéro.
 
-> **En cours :** l'extraction de ces données depuis les deux `.zip` est en train d'être réécrite
-> en Java, pour que le jeu les crée lui-même au premier lancement. D'ici là, le dossier
-> `assets/` doit être produit par les outils d'extraction de développement, qui ne sont pas
-> publiés dans ce dépôt.
+## Développement
 
-## Lancer
+Prérequis : **JDK 21**. Gradle et son wrapper font le reste.
 
 ```
-gradlew run            # Linux / macOS : ./gradlew run
+gradlew run                  # Linux / macOS : ./gradlew run
+gradlew run -PverifyPorts    # chaque routine portée est comparée au code original, image par image
+gradlew releaseZip           # application autonome (jpackage, JRE inclus) zippée dans build/distributions
+gradlew jpackageImage -PinstallerType=msi   # installeur natif (msi/exe : WiX ; deb, rpm, dmg, pkg)
 ```
-- Mode vérification (plus lent) : `gradlew run -PverifyPorts`. Chaque routine portée est
-  rejouée sur le code original et toute différence est signalée.
+
+- **Données du jeu** : `gradlew run` utilise `../assets` s'il existe. Sinon, il passe par
+  l'extraction du premier lancement décrite plus haut. `-Dbubba.assets=<dossier>` impose un
+  dossier.
+- **Release** : jpackage produit une application pour le système sur lequel il tourne. Pour
+  publier Windows, macOS et Linux, il faut construire la release sur chacun d'eux, par exemple
+  avec une CI.
+- **Outils de développement** (`bubba.dev`) :
+  - `ExtractCheck` compare l'extraction Java à un dossier `assets` de référence ;
+  - `ReadmeShots` produit les captures d'écran de ce README ;
+  - `EmuShot` et `PortFuzz` vérifient les portages.
 - Le projet s'ouvre directement dans NetBeans, IntelliJ IDEA ou VS Code comme projet Gradle.
 
 ## Contrôles
@@ -96,6 +128,7 @@ gradlew run            # Linux / macOS : ./gradlew run
 
 ```
 src/main/java/bubba/
+  extract/  extraction des disquettes : AmigaDOS, RNC ProPack, sons, musiques, images, niveaux
   engine/   fenêtre, boucle 50 Hz (VBL PAL), entrées, chargement des assets
   audio/    lecteur ProTracker, bruitages
   scenes/   écran titre, options, niveau
@@ -111,4 +144,5 @@ src/main/java/bubba/
 
 Bubba 'n' Stix est © 1994 Core Design. Ce projet est un travail de préservation et
 d'étude, sans but commercial, et n'est affilié ni à Core Design ni à ses ayants droit. Il ne
-distribue aucune donnée du jeu : il faut fournir ses propres images de disquettes.
+distribue aucune donnée du jeu : il faut fournir ses propres images de disquettes. Les captures
+d'écran de ce README servent seulement à illustrer le projet.

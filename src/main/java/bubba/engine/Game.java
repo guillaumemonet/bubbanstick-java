@@ -71,6 +71,30 @@ public final class Game {
         return ticks;
     }
 
+    public Input input() {
+        return input;
+    }
+
+    /** One 50 Hz tick without the window loop (scripted play, screenshots). */
+    public void step() {
+        tick();
+    }
+
+    /** The current scene drawn into a new 320x256 image (works without a window). */
+    public BufferedImage snapshot() {
+        BufferedImage img = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = img.createGraphics();
+        try {
+            Scene s = scenes.current();
+            if (s != null) {
+                s.render(this, g);
+            }
+        } finally {
+            g.dispose();
+        }
+        return img;
+    }
+
     /** Create the window (must be called on the EDT). */
     public void open() {
         canvas = new Canvas();

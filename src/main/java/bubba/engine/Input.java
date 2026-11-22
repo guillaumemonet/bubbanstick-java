@@ -40,6 +40,14 @@ public final class Input extends KeyAdapter {
         }
     }
 
+    /** Press or release a button from code (scripted play, screenshots). */
+    public synchronized void set(Button b, boolean pressed) {
+        live[b.ordinal()] = pressed;
+        if (pressed) {
+            latched[b.ordinal()] = true;
+        }
+    }
+
     /** Take a snapshot for this tick (called by the game loop). */
     synchronized void poll() {
         for (int i = 0; i < down.length; i++) {

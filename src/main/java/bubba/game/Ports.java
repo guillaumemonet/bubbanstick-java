@@ -43,6 +43,7 @@ public final class Ports {
         HeroSprite.register(PORTS);
         StatusValues.register(PORTS);
         StixPort.register(PORTS);
+        HeroPhysics.register(PORTS);
         PORTS.put(0xdf38, AnimPort::run);
         PORTS.put(0xe6ec, BehaviourPort::engine0);
         PORTS.put(0xe4ea, BehaviourPort::engine4);

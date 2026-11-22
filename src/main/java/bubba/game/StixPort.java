@@ -17,7 +17,8 @@ import java.util.Map;
  *   <li>state 8 (0xC520): bounced off a wall / solid object, decelerating, spinning;</li>
  *   <li>state A (0xC2C4): bounced off an enemy (speed halved each frame; the original writes the
  *       halved speed to the absolute address $28 instead of +$28);</li>
- *   <li>state C (0xBF60): stuck in the ground, animation script +$C (tables 0xBFB4 / 0xBFC4).</li>
+ *   <li>state C (0xBF60): stuck in the ground, animation script +$C (tables 0xBFB4 / 0xBFC4);</li>
+ *   <li>state -2 (0xBF06, entry just before the table): carried, +$44 cleared.</li>
  * </ul>
  * Farther than $1B0 / $138 from Bubba in states 6..C, Stix comes back (state 4). The flying
  * states then test (0xC03E) the map, the solid objects and the enemies (+$9D hit points) with
@@ -117,6 +118,10 @@ final class StixPort {
             case 0xc520 -> bounced(s);
             case 0xc2c4 -> hitEnemy(s);
             case 0xbf60 -> stuck(s);
+            case 0xbf06 -> { // state -2 (the word before the table): held by Bubba
+                m.write32(S + 0x44, 0);
+                s.flag(2, false);
+            }
             default -> throw new IllegalStateException(String.format("Stix state %d -> $%X", state, target));
         }
     }

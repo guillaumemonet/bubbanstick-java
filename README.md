@@ -44,7 +44,6 @@ sans aucune différence avec l'original, y compris ses bizarreries, qui font par
 du jeu.
 
 **Reste à faire** :
-- la pause au clavier (le clavier n'est pas encore relié au jeu) ;
 - les états internes du jeu (registres du 68000) sont encore représentés comme tels : le code
   Java suit l'original au plus près, il pourra être simplifié une fois la référence moins
   nécessaire.
@@ -53,15 +52,16 @@ du jeu.
 
 1. **Télécharger le jeu** : l'archive de la [dernière release](../../releases) pour votre système
    (`BubbaNStix-<version>-windows-amd64.zip`...). Java est inclus : rien d'autre à installer.
-2. **Récupérer les deux disquettes** du jeu original, au format TOSEC, par exemple sur Amiga
-   Museum :
+2. **Les deux disquettes** du jeu original (format TOSEC) : le jeu propose de les télécharger
+   lui-même au premier lancement ; sinon, sur Amiga Museum :
    - [Bubba 'n' Stix (1994)(Core)(Disk 1 of 2)[cr LTD].zip](https://amigamuseum.emu-france.info/Fichiers/ADF/B/Bubba%20'n'%20Stix%20(1994)(Core)(Disk%201%20of%202)%5bcr%20LTD%5d.zip)
    - [Bubba 'n' Stix (1994)(Core)(Disk 2 of 2)[cr LTD].zip](https://amigamuseum.emu-france.info/Fichiers/ADF/B/Bubba%20'n'%20Stix%20(1994)(Core)(Disk%202%20of%202)%5bcr%20LTD%5d.zip)
 3. **Lancer** `BubbaNStix` (`BubbaNStix.exe` sous Windows).
 
 Au premier lancement, le jeu cherche les disquettes (archives `.zip` ou images `.adf`) à côté de
-l'application, dans le dossier courant et dans Téléchargements. S'il ne les trouve pas, il les
-demande. Il en extrait ses données en quelques secondes, une seule fois, dans le dossier
+l'application, dans le dossier courant et dans Téléchargements. S'il ne les trouve pas, il
+propose de les **télécharger directement depuis Amiga Museum** (un clic), ou de les choisir à la
+main. Il en extrait ses données en quelques secondes, une seule fois, dans le dossier
 utilisateur :
 
 | Système | Dossier |
@@ -102,6 +102,7 @@ gradlew jpackageImage -PinstallerType=msi   # installeur natif (msi/exe : WiX ; 
 |---|---|
 | Flèches / ZQSD / WASD | directions (joystick) |
 | Espace / Ctrl / Entrée | feu |
+| P | pause (une touche pour reprendre) |
 | Échap | retour / quitter |
 | F1–F4 | fenêtre ×1 à ×4 |
 | F11 | plein écran |

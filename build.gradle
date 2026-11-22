@@ -86,7 +86,7 @@ tasks.register('jpackageImage', Exec) {
                     '--input', input.absolutePath,
                     '--main-jar', jarName.get(),
                     '--main-class', mainClass.get(),
-                    '--add-modules', 'java.desktop',
+                    '--add-modules', 'java.desktop,java.net.http',
                     '--jlink-options', '--strip-debug --no-man-pages --no-header-files',
                     '--dest', out.absolutePath]
         if (type != 'app-image' && windows) {

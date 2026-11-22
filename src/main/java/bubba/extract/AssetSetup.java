@@ -251,7 +251,8 @@ public final class AssetSetup {
                     + "qui ne sont pas fournies. Il faut les deux disquettes, au format TOSEC :</p><ul>"
                     + "<li><a href=\"" + DISK1_URL + "\">Bubba 'n' Stix (1994)(Core)(Disk 1 of 2)[cr LTD].zip</a></li>"
                     + "<li><a href=\"" + DISK2_URL + "\">Bubba 'n' Stix (1994)(Core)(Disk 2 of 2)[cr LTD].zip</a></li>"
-                    + "</ul><p>Téléchargez-les, puis indiquez-les ci-dessous (fichiers .zip ou .adf). "
+                    + "</ul><p>Le bouton <b>Télécharger</b> les récupère directement sur Amiga Museum ; "
+                    + "sinon, téléchargez-les puis indiquez-les ci-dessous (fichiers .zip ou .adf). "
                     + "Elles ne sont lues qu'une fois : les données sont ensuite gardées dans<br><code>"
                     + dataDir() + "</code></p></body></html>");
             text.setEditable(false);
@@ -279,10 +280,36 @@ public final class AssetSetup {
                     dlg.dispose();
                 }
             });
+            JButton download = new JButton("Télécharger depuis Amiga Museum");
+            download.addActionListener(e -> {
+                download.setEnabled(false);
+                choose.setEnabled(false);
+                download.setText("Téléchargement...");
+                new Thread(() -> {
+                    try {
+                        List<Path> got = download(dataDir().resolve("disks"));
+                        SwingUtilities.invokeLater(() -> {
+                            result.addAll(got);
+                            chosen[0] = true;
+                            dlg.dispose();
+                        });
+                    } catch (Exception ex) {
+                        SwingUtilities.invokeLater(() -> {
+                            JOptionPane.showMessageDialog(dlg, "Le téléchargement a échoué :\n" + ex.getMessage()
+                                    + "\n\nTéléchargez les deux fichiers avec les liens, puis choisissez-les.",
+                                    "Bubba 'n' Stix", JOptionPane.WARNING_MESSAGE);
+                            download.setText("Télécharger depuis Amiga Museum");
+                            download.setEnabled(true);
+                            choose.setEnabled(true);
+                        });
+                    }
+                }, "disk-download").start();
+            });
             quit.addActionListener(e -> dlg.dispose());
             JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
             buttons.add(quit);
             buttons.add(choose);
+            buttons.add(download);
             JPanel panel = new JPanel();
             panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
             panel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
@@ -294,5 +321,27 @@ public final class AssetSetup {
             dlg.setVisible(true);
         });
         return chosen[0] ? result : null;
+    }
+
+    /** Downloads the two TOSEC archives from Amiga Museum into {@code dir}. */
+    static List<Path> download(Path dir) throws IOException, InterruptedException {
+        Files.createDirectories(dir);
+        java.net.http.HttpClient http = java.net.http.HttpClient.newBuilder()
+                .followRedirects(java.net.http.HttpClient.Redirect.NORMAL)
+                .connectTimeout(java.time.Duration.ofSeconds(20)).build();
+        List<Path> out = new ArrayList<>();
+        int n = 1;
+        for (String url : new String[]{DISK1_URL, DISK2_URL}) {
+            Path f = dir.resolve("Bubba 'n' Stix (1994)(Core)(Disk " + n++ + " of 2)[cr LTD].zip");
+            java.net.http.HttpResponse<Path> r = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(url))
+                            .header("User-Agent", "BubbaNStix-remake").timeout(java.time.Duration.ofMinutes(2)).build(),
+                    java.net.http.HttpResponse.BodyHandlers.ofFile(f));
+            if (r.statusCode() != 200) {
+                Files.deleteIfExists(f);
+                throw new IOException("HTTP " + r.statusCode() + " pour " + url);
+            }
+            out.add(f);
+        }
+        return out;
     }
 }

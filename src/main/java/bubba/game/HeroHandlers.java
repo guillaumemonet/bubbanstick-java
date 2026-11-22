@@ -74,6 +74,13 @@ final class HeroHandlers {
         port(ports, 0xf7fe, R::f7fe);
     }
 
+    /** 0xA652 for the level start: Bubba standing (state 0). */
+    static void standing(M68k c) {
+        R r = new R(c);
+        r.a652();
+        r.sync();
+    }
+
     private static int sw(int reg, int v) {
         return (reg & 0xffff0000) | (v & 0xffff);
     }

@@ -26,6 +26,21 @@ public final class Coverage {
         TreeSet<Integer> all = new TreeSet<>();
         TreeSet<Integer> perStage = new TreeSet<>();
         Map<Integer, TreeSet<Integer>> byRange = new TreeMap<>();
+        if (Boolean.getBoolean("coverage.start")) { // the level start only
+            TreeSet<Integer> start = new TreeSet<>();
+            for (int stage = 1; stage <= 5; stage++) {
+                final int st = stage;
+                GameEmulator.startTrace = pc -> start.add(st << 24 | pc);
+                new GameEmulator(assets, LevelData.stage(assets, stage), 3, 6, null);
+            }
+            StringBuilder b = new StringBuilder();
+            for (int v : start) {
+                b.append(String.format("s%d %05x%n", v >>> 24, v & 0xffffff));
+            }
+            java.nio.file.Files.writeString(Paths.get(System.getProperty("coverage.out")), b);
+            System.out.println("level start: " + start.size());
+            return;
+        }
         for (int stage = 1; stage <= 5; stage++) {
             GameEmulator emu = new GameEmulator(assets, LevelData.stage(assets, stage), 9, 6, null);
             java.util.Random r = new java.util.Random(stage);

@@ -120,6 +120,7 @@ public final class Ports {
         HeroStates.register(PORTS);
         HeroHandlers.register(PORTS);
         Respawn.register(PORTS);
+        LevelStart.register(PORTS);
         PORTS.put(0xdf38, AnimPort::run);
         PORTS.put(0xe6ec, BehaviourPort::engine0);
         PORTS.put(0xe4ea, BehaviourPort::engine4);

@@ -34,6 +34,9 @@ public final class GameEmulator {
     private static final int TRIGGERS = 0xc8008;
     private static final int MAX_STEPS = 5_000_000;
 
+    /** Dev: trace of the original code run by the level start (coverage measures). */
+    public static java.util.function.IntConsumer startTrace;
+
     public final GameMemory ram;
     public final M68k cpu;
     public final LevelData level;
@@ -54,6 +57,7 @@ public final class GameEmulator {
         ram.loadSet(level.setImage());
         LevelMemory.build(ram, level.info(), level.rawMap());
         cpu = new M68k(ram);
+        cpu.trace = startTrace;
         cpu.hook(0x7bc8, c -> {
             onSound.accept(c.d[0] & 0xff);
             if (sounds != null) {

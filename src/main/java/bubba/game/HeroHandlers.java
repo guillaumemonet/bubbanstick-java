@@ -71,6 +71,7 @@ final class HeroHandlers {
         port(ports, 0xbc3e, R::state34);
         port(ports, 0xbd34, R::state36);
         port(ports, 0xbdea, R::bdea);
+        port(ports, 0xf7fe, R::f7fe);
     }
 
     private static int sw(int reg, int v) {
@@ -682,7 +683,11 @@ final class HeroHandlers {
             if (r16(a0 + 0x18) > 1) {
                 return;
             }
-            callKeeping(0xf7fe);
+            int s1 = d1, sa0 = a0, sa1 = a1;
+            f7fe();
+            d1 = s1;
+            a0 = sa0;
+            a1 = sa1;
         }
 
         /** 0xAA46: end of the throw / hit, back to the state saved in +$C (sub-state +$E). */
@@ -2249,6 +2254,159 @@ final class HeroHandlers {
             w32(a0 + 0x28, d3);
             w32(a0 + 0x2c, d4);
             w8(0xbdd7, (d7 & 0xffff) == 0 ? 0xff : 0);
+        }
+
+        // ---------------------------------------------------------------- 0xF7FE: Stix hits
+
+        /**
+         * 0xF7FE: the objects with hit points (+$9D) in Stix's swing box hit (2 points): effect $17
+         * between Stix and the object (its position also kept at -$C(a1)), then either the
+         * "hurt" scripts of the type (definition +$18) or a sound, the score and the object's end.
+         */
+        void f7fe() {
+            a3 = 0x10910;
+            d0 = sw(d0, r16(a3 + 2));
+            d1 = sw(d1, r16(a3 + 6));
+            d0 = sw(d0, d0 + r16(0xbdba));
+            d1 = sw(d1, d1 + r16(0xbdbc));
+            d0 = sw(d0, d0 + r16(a3 + 0x28));
+            d2 = sw(d2, d0);
+            d3 = sw(d3, d1);
+            d2 = sw(d2, d2 + 0x2a);
+            d3 = sw(d3, d3 + 0x40);
+            a6 = 0x17514;
+            d7 = sw(d7, r16(a6));
+            a6 += 2;
+            while (true) {
+                d7 = sw(d7, d7 - 1);
+                if ((d7 & 0xffff) == 0xffff) {
+                    return;
+                }
+                a5 = r32(a6);
+                a6 += 4;
+                if (r8(a5 + 0x9d) == 0 || r16(a5 + 0x3a) != 0) {
+                    continue;
+                }
+                d6 = sw(d6, r16(a5 + 2) + r16(a5 + 0x14));
+                if ((short) d2 <= (short) d6) {
+                    continue;
+                }
+                d6 = sw(d6, d6 + r16(a5 + 0x18));
+                if ((short) d0 >= (short) d6) {
+                    continue;
+                }
+                d6 = sw(d6, r16(a5 + 6) + r16(a5 + 0x16));
+                if ((short) d3 <= (short) d6) {
+                    continue;
+                }
+                d6 = sw(d6, d6 + r16(a5 + 0x1a));
+                if ((short) d1 >= (short) d6) {
+                    continue;
+                }
+                hitObject();
+            }
+        }
+
+        private void hitObject() {
+            int s0 = d0, s1 = d1, s2 = d2, s3 = d3, s7 = d7, sa3 = a3, sa5 = a5, sa6 = a6;
+            d2 = sw(d2, d2 - d0);
+            d3 = sw(d3, d3 - d1);
+            d2 = sw(d2, (short) d2 >> 1);
+            d3 = sw(d3, (short) d3 >> 1);
+            d0 = sw(d0, d0 + d2);
+            d1 = sw(d1, d1 + d3);
+            d2 = sw(d2, r16(a5 + 2) + r16(a5 + 0x14));
+            d6 = sw(d6, r16(a5 + 0x18));
+            d6 = sw(d6, (short) d6 >> 1);
+            d2 = sw(d2, d2 + d6);
+            d3 = sw(d3, r16(a5 + 6) + r16(a5 + 0x16));
+            d6 = sw(d6, r16(a5 + 0x1a));
+            d6 = sw(d6, (short) d6 >> 1);
+            d3 = sw(d3, d3 + d6);
+            d2 = sw(d2, d2 - d0);
+            d3 = sw(d3, d3 - d1);
+            d2 = sw(d2, (short) d2 >> 1);
+            d3 = sw(d3, (short) d3 >> 1);
+            d0 = sw(d0, d0 + d2);
+            d1 = sw(d1, d1 + d3);
+            int px = (short) d0, py = (short) d1; // movem.w d0-d1, -(a7)
+            d0 = 0x17;
+            jump(0xfb58);
+            d0 = px;
+            d1 = py;
+            d0 = (d0 << 16) | (d0 >>> 16);
+            d1 = (d1 << 16) | (d1 >>> 16);
+            w32(a1 - 0xc, d0);
+            w32(a1 - 8, d1);
+            d0 = s0;
+            d1 = s1;
+            d2 = s2;
+            d3 = s3;
+            d7 = s7;
+            a3 = sa3;
+            a5 = sa5;
+            a6 = sa6;
+            d5 = sw(d5, r16(a5 + 2));
+            d6 = sw(d6, r16(a5 + 0x5c));
+            a4 = 0x111a6;
+            d6 = sw(d6, d6 * 2);
+            a4 += (short) d6;
+            a4 += (short) r16(a4);
+            if (r8(a4 + 0x17) == 0) {
+                // 0xF95E
+                int[] regs = c.saveRegisters();
+                sync();
+                c.d[0] = 0xc;
+                c.d[1] = 0;
+                Calls.call(c, 0x7bc8);
+                c.restoreRegisters(regs);
+                int left = (byte) (r8(a5 + 0x9d) - 2);
+                w8(a5 + 0x9d, left);
+                if (left <= 0) {
+                    w8(a5 + 0x9d, 0);
+                    HeroContacts.addScore(m, a5 + 0x60);
+                    d6 = sw(d6, d0);
+                    d5 = sw(d5, d1);
+                    jump(0xdc90);
+                    d1 = sw(d1, d5);
+                    d0 = sw(d0, d6);
+                }
+                w16(a5 + 0x3a, 8);
+                return;
+            }
+            a4 += 0x18;
+            int left = (byte) (r8(a5 + 0x9d) - 2);
+            w8(a5 + 0x9d, left);
+            if (left <= 0) {
+                w8(a5 + 0x9d, 0);
+                HeroContacts.addScore(m, a5 + 0x60);
+                a4 += 6;
+            }
+            w16(a5 + 0x84, r16(a5 + 0x82));
+            w8(a5 + 0x83, r8(a5 + 0x83) & ~4);
+            w32(a5 + 0xa2, r32(a5 + 0x10));
+            w32(a5 + 0xa6, r32(a5 + 0x4c));
+            w32(a5 + 0xaa, r32(a5 + 0x50));
+            w32(a5 + 0xae, r32(a5 + 0xc));
+            w32(a5 + 0xb2, r32(a5 + 0x32));
+            w32(a5 + 0xb6, r32(a5 + 0x36));
+            w32(a5 + 0x4c, 0);
+            w32(a5 + 0x32, 0);
+            w16(a5 + 0x3a, 0x7fff);
+            a2 = a4 + (short) r16(a4);
+            a4 += 2;
+            if ((short) d5 < s16(a3 + 2)) {
+                a2 += 2;
+                a4 += 2;
+            }
+            a2 += (short) r16(a2);
+            w32(a5 + 0x10, a2);
+            a4 += (short) r16(a4);
+            w32(a5 + 0xc, a4);
+            w16(a5 + 0x4e, 0);
+            w16(a5 + 0x4c, 0);
+            w16(a5 + 0x34, 0);
+            w16(a5 + 0x32, 0);
         }
 
         // ---------------------------------------------------------------- state 0: standing

@@ -52,6 +52,9 @@ public final class PortFuzz {
                 m.write32(0x17506, rnd.nextBoolean() ? o : 0);
                 m.write32(0x1098a, (m.read16(o + 2) + rnd.nextInt(64) - 32) << 16);
                 m.write32(0x1098e, (m.read16(o + 6) + rnd.nextInt(64) - 32) << 16);
+                if (args[1].equals("5") && routine >= 0x12300 && routine < 0x17000) {
+                    setupBoss(c, m, rnd, n);
+                }
             } else if (routine == 0x129ee) { // stage 5 callback: sequences
                 m.write8(0x12d52, new int[]{0, 0, 1, 0x80}[rnd.nextInt(4)]);
                 m.write8(0x12d53, new int[]{0, 1, 0x80}[rnd.nextInt(3)]);
@@ -75,6 +78,16 @@ public final class PortFuzz {
             }
             byte[] before = m.snapshot();
             int[] setRegs = c.saveRegisters();
+            if (Integer.getInteger("fuzz.dump", -1) == t) {
+                System.out.printf("a5 %X a0 %X d %X %X %X %X%n", c.a[5], c.a[0], c.d[0], c.d[1], c.d[2], c.d[3]);
+                for (int i = 0; i < 6; i++) {
+                    System.out.printf("part %d at %X%n", i, m.read32(0x10aea + 4 * i));
+                }
+                c.trace = pc -> System.out.printf("  %05X d0 %08X d1 %08X d2 %08X d3 %08X d4 %08X a0 %05X a2 %05X%n",
+                        pc, c.d[0], c.d[1], c.d[2], c.d[3], c.d[4], c.a[0], c.a[2]);
+            } else {
+                c.trace = null;
+            }
             try {
                 c.callNested(routine, 200_000, true);
             } catch (IllegalStateException e) {
@@ -110,6 +123,35 @@ public final class PortFuzz {
             }
         }
         System.out.printf("$%X: %d trials, %d skipped, %d different%n", routine, trials, skipped, bad);
+    }
+
+    /** Stage 5 boss: the parts $10AEA-$10AFE on random objects, their fields random. */
+    private static void setupBoss(M68k c, GameMemory m, Random r, int n) {
+        for (int i = 0; i < 6; i++) {
+            int o = n > 0 ? m.read32(0x17516 + 4 * r.nextInt(n)) : 0x17ed8;
+            m.write32(0x10aea + 4 * i, o);
+            for (int f : new int[]{2, 4, 6, 8, 0x28, 0x2a, 0x2c, 0x2e, 0x44, 0x46}) {
+                m.write16(o + f, r.nextInt(0x10000));
+            }
+            m.write8(o + 0x30, r.nextInt(256));
+            m.write16(o + 0x86, r.nextInt(64) - 40);
+            m.write8(o + 0x9d, 0x60 + r.nextInt(0x20));
+            m.write16(o + 0x3a, r.nextInt(3) == 0 ? 7 : r.nextInt(10));
+        }
+        int o = c.a[5];
+        for (int f : new int[]{2, 4, 6, 8, 0x28, 0x2a, 0x2c, 0x2e, 0x44, 0x46, 0x16}) {
+            m.write16(o + f, r.nextInt(0x10000));
+        }
+        m.write16(o + 0x46, r.nextInt(3) - 1);
+        m.write16(o + 0x3a, r.nextBoolean() ? 7 : 0);
+        m.write32(0x12d5e, r.nextBoolean() ? 0 : r.nextInt());
+        m.write32(0x10894, r.nextInt());
+        m.write32(0x10898, r.nextInt());
+        m.write16(0x10912, r.nextInt(0x400));
+        c.a[0] = m.read32(0x10aea + 4 * r.nextInt(6));
+        for (int i = 0; i < 4; i++) {
+            c.d[i] = r.nextInt();
+        }
     }
 
     /** Bubba's state handlers: random joystick (and condition codes), sub-state, hero fields. */

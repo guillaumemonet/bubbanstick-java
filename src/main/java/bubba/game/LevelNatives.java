@@ -520,6 +520,7 @@ final class LevelNatives {
     // ------------------------------------------------------------------ stage 5
 
     private static void stage5(Map<Integer, Ports.Port> m) {
+        Stage5Boss.register(m);
         add(m, 0x1249a, c -> s5Gate(c, 0x12d50, true));
         add(m, 0x124aa, c -> s5Gate(c, 0x12d50, false));
         add(m, 0x124f0, c -> s5Gate(c, 0x12d51, true));

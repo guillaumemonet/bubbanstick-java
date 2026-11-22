@@ -39,7 +39,8 @@ public final class Main {
         Game game = new Game("Bubba 'n' Stix", assets);
         SwingUtilities.invokeLater(() -> {
             game.open();
-            game.scenes().set(new TitleScene());
+            int stage = Integer.getInteger("bubba.stage", 0); // gradlew run -Pstage=5
+            game.scenes().set(stage >= 1 && stage <= 5 ? new bubba.scenes.LevelScene(stage) : new TitleScene());
             game.start();
         });
     }

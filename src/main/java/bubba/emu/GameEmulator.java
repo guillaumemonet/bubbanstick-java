@@ -34,6 +34,9 @@ public final class GameEmulator {
     private static final int TRIGGERS = 0xc8008;
     private static final int MAX_STEPS = 5_000_000;
 
+    /** -Dbubba.invincible=true (gradlew run -Pinvincible): Bubba cannot be hurt. */
+    public static final boolean INVINCIBLE = Boolean.getBoolean("bubba.invincible");
+
     /** Dev: trace of the original code run by the level start (coverage measures). */
     public static java.util.function.IntConsumer startTrace;
 
@@ -168,6 +171,15 @@ public final class GameEmulator {
         }
         ram.write8(0x8269, joy);
         cpu.a[7] = GameMemory.STACK_TOP - 0x100;
+        if (INVINCIBLE) { // cheat: the invulnerability timer kept running, energy and lives full
+            if ((short) ram.read16(HERO + 0x3a) < 2) {
+                ram.write16(HERO + 0x3a, 2);
+            }
+            ram.write16(ENERGY, 6);
+            if ((short) ram.read16(LIVES) < 3) {
+                ram.write16(LIVES, 3);
+            }
+        }
         boolean go;
         if (bubba.game.Ports.VERIFY) {
             go = verifiedFrame();

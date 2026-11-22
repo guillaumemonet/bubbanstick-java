@@ -20,6 +20,13 @@ run {
     workingDir = projectDir
     systemProperty 'bubba.assets', file('../assets').absolutePath
     // gradlew run -PverifyPorts : every Java port is checked against the original 68000 code
+    // gradlew run -Pstage=5 -Pinvincible : start at a stage, Bubba cannot be hurt
+    if (project.hasProperty('stage')) {
+        systemProperty 'bubba.stage', project.property('stage')
+    }
+    if (project.hasProperty('invincible')) {
+        systemProperty 'bubba.invincible', 'true'
+    }
     if (project.hasProperty('verifyPorts')) {
         systemProperty 'bubba.verifyPorts', 'true'
     }

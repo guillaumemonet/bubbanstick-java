@@ -598,6 +598,36 @@ final class LevelNatives {
             c.d[0] = 0xffff; // moveq #4 then dbra
         });
         add(m, 0x14e46, LevelNatives::s5Sequencer);
+        add(m, 0x1374e, c -> c.mem.write8(c.a[5] + 0x44, ~c.mem.read8(c.a[5] + 0x44)));
+        add(m, 0x13b26, c -> c.mem.write16(c.a[5] + 0xa0, c.mem.read16(c.a[5] + 0xa0) ^ 0x8000));
+        add(m, 0x13b50, c -> c.mem.write32(c.a[5] + 0x44, c.mem.read32(c.a[5] + 0x48)));
+        add(m, 0x13b58, c -> { // the carried object +$44 moves with this one
+            GameMemory g = c.mem;
+            int o = c.a[5];
+            c.d[0] = g.read32(o + 0x44);
+            if (c.d[0] == 0) {
+                c.a[4] = 0x12602;
+                return;
+            }
+            c.a[0] = c.d[0];
+            c.d[0] = g.read32(o + 0x28);
+            c.d[1] = g.read32(o + 0x2c);
+            g.write32(c.a[0] + 0x28, c.d[0]);
+            g.write32(c.a[0] + 0x2c, c.d[1]);
+            c.d[0] += g.read32(c.a[0] + 0x20);
+            c.d[1] += g.read32(c.a[0] + 0x24);
+            g.write32(c.a[0] + 2, c.d[0]);
+            g.write32(c.a[0] + 6, c.d[1]);
+        });
+        add(m, 0x13c5a, c -> { // drop the carried object
+            GameMemory g = c.mem;
+            c.d[0] = g.read32(c.a[5] + 0x44);
+            if (c.d[0] != 0) {
+                c.a[0] = c.d[0];
+                g.write8(c.a[0] + 0x63, 0xff);
+                g.write32(c.a[5] + 0x44, 0);
+            }
+        });
         add(m, 0x12610, c -> { // the object's particle position kept at $12D5E
             GameMemory g = c.mem;
             c.a[1] = 0x12d5e;

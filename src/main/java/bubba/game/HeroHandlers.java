@@ -55,6 +55,9 @@ final class HeroHandlers {
         port(ports, 0xacc6, R::state10);
         port(ports, 0xad08, R::state12);
         port(ports, 0xadde, R::adde);
+        port(ports, 0xae38, R::state14);
+        port(ports, 0xb028, R::state16);
+        port(ports, 0xb094, R::state18);
     }
 
     private static int sw(int reg, int v) {
@@ -1044,6 +1047,14 @@ final class HeroHandlers {
         void adde() {
             w16(a1 + 0x16, 0xffe0);
             w16(a1 + 0x1a, 0x20);
+            adee();
+            sync();
+            HeroStates.epilogue(c);
+            load();
+        }
+
+        /** 0xADEE: the body of 0xADDE after it pushed the epilogue. */
+        void adee() {
             w16(0x10ac8, 0xe80);
             d0 = r32(a1 + 0x28) >> 1;
             d1 = r32(a1 + 0x2c) >> 2;
@@ -1063,9 +1074,213 @@ final class HeroHandlers {
             }
             d0 = 0x14;
             setState();
-            sync();
-            HeroStates.epilogue(c);
-            load();
+        }
+
+        // ---------------------------------------------------------------- state 14: swimming
+
+        /** 0xAE38. */
+        void state14() {
+            d2 = sw(d2, r16(0x108b6));
+            if ((d2 & 0xffff) == 0) {
+                d2 = sb(d2, r8(0x10aba));
+                if ((d2 & 0xff) != 0) {
+                    jump(0xb300);
+                    return;
+                }
+            }
+            if ((short) d1 >= 0xe) {
+                if ((d1 & 0xffff) == 0xe) {
+                    if (r8(a1 + 0x4c) == 2) {
+                        d1 = 2;
+                        w8(a1 + 0x4c, 0);
+                    }
+                } else {
+                    if (r8(a1 + 0x4c) == 3) {
+                        w8(a1 + 0x4c, 0);
+                        d1 = sw(d1, d1 + 2);
+                        if ((short) d1 >= 0x18) {
+                            d1 = 0x12;
+                        }
+                    }
+                    if (r8(a1 + 0x56) != 0) {
+                        w8(a1 + 0x4c, 0);
+                        d1 = 0xe;
+                    }
+                }
+                d0 = sb(d0, d0 & 0xf0); // the stroke goes on: directions ignored
+            }
+            if (left()) {
+                if ((r8(a1 + 0x55) & 0x80) == 0 && (d1 & 0xffff) != 0xc) {
+                    d1 = 0xc;
+                    w8(a1 + 0x4c, 0);
+                }
+                d2 = r32(a1 + 0x28);
+                if (d2 == 0) {
+                    d2 = 0xffff0000;
+                } else {
+                    d2 -= 0x4000;
+                    if (d2 < 0xfffc0000) {
+                        d2 = 0xfffc0000;
+                    }
+                }
+            } else if (right()) {
+                if ((r8(a1 + 0x55) & 0x80) != 0 && (d1 & 0xffff) != 0xc) {
+                    d1 = 0xc;
+                    w8(a1 + 0x4c, 0);
+                }
+                d2 = r32(a1 + 0x28);
+                if (d2 == 0) {
+                    d2 = 0x10000;
+                } else {
+                    d2 += 0x4000;
+                    if (d2 > 0x40000) {
+                        d2 = 0x40000;
+                    }
+                }
+            } else {
+                d2 = r32(a1 + 0x28);
+                if (d2 >= 0) {
+                    d2 -= 0x2000;
+                    if (d2 < 0) {
+                        d2 = 0;
+                    }
+                } else {
+                    d2 += 0x2000;
+                    if (d2 >= 0) {
+                        d2 = 0;
+                    }
+                }
+            }
+            w32(a1 + 0x28, d2);
+            // vertical: current of the level ($10A58 / $10A5C), up / down
+            d2 = r32(0x10a58) * 2;
+            d3 = sb(d3, r8(0x10a5c));
+            if ((byte) d3 > 0) {
+                d2 = -d2;
+            }
+            d2 += r32(a1 + 0x2c);
+            d3 = sw(d3, r16(a1 + 6) - 0x20 - r16(0x10a5e));
+            boolean surface = false;
+            if (up()) {
+                if ((short) d3 >= 0) {
+                    d2 = r32(a1 + 0x2c) - 0x8000;
+                    if (d2 < 0xfffa0000) {
+                        d2 = 0xfffa0000;
+                    }
+                } else if (d2 > 0xfffc0000) {
+                    d2 = afa2();
+                } else {
+                    surface = true;
+                }
+            } else if (down()) {
+                if ((short) d3 < 0 && d2 <= 0xfffc0000) {
+                    surface = true;
+                } else {
+                    d2 = r32(a1 + 0x2c) + 0x4000;
+                    if (d2 > 0x40000) {
+                        d2 = 0x40000;
+                    }
+                }
+            } else if ((short) d3 >= 0) {
+                d2 = r32(a1 + 0x2c);
+                if (d2 > 0xffff0000) {
+                    d2 += 0xffffc000;
+                }
+            } else if (d2 <= 0xfffc0000) {
+                surface = true;
+            } else {
+                d2 = afa2();
+            }
+            if (surface) {
+                // 0xAF3E: jumping out of the water
+                w32(a0, d2);
+                d1 = 0;
+                w8(a1 + 0x73, 0);
+                w16(0x10ac8, 0);
+                d0 = 0x16;
+                setState();
+                return;
+            }
+            w32(a1 + 0x2c, d2);
+            if (r8(a1 + 0x72) != 0) {
+                d3 = sw(d3, d3 - 0x10);
+                if ((short) d3 < 0) {
+                    w32(a1 + 0x60, 0x10000);
+                    w32(a1 + 0x5c, 0xe400);
+                    d1 = 6;
+                    w16(0x10ac8, 0);
+                    ab96();
+                    return;
+                }
+            }
+            // 0xAFF6: swim animation
+            w8(a1 + 0x4c, r8(a1 + 0x4c) + 1);
+            if ((short) d1 < 0xe && (byte) r8(a1 + 0x4c) >= 3) {
+                w8(a1 + 0x4c, 0);
+                if ((d1 & 0xffff) == 0xc) {
+                    w8(a1 + 0x55, ~r8(a1 + 0x55));
+                    d1 = 2;
+                } else {
+                    d1 = sw(d1, d1 + 2);
+                    if ((short) d1 >= 0xc) {
+                        d1 = 2;
+                    }
+                }
+            }
+            w8(a1 + 0x72, 0);
+        }
+
+        /** 0xAFA2: floating up towards the surface. */
+        private int afa2() {
+            int v = r32(a1 + 0x2c);
+            if (v < 0x20000) {
+                v += 0xaaaa;
+            }
+            return v;
+        }
+
+        // ---------------------------------------------------------------- states 16 / 18
+
+        /** 0xB028: out of the water. */
+        void state16() {
+            int v = ~r8(a1 + 0x4c) & 0xff;
+            w8(a1 + 0x4c, v);
+            if ((v & 0x80) != 0 || r8(a1 + 0x73) != 0) {
+                return;
+            }
+            w32(a1 + 0x60, 0x10000);
+            w32(a1 + 0x5c, 0xe400);
+            w8(a1 + 0x4c, 0xff);
+            if (ceiling()) {
+                w32(a1 + 0x2c, 0x20000);
+                w8(a1 + 0x73, 0xff);
+                adee();
+                return;
+            }
+            w16(a1 + 0x16, 0xffc0);
+            w16(a1 + 0x1a, 0x40);
+            d2 = r32(a0);
+            if (d2 <= 0xfff80000) {
+                d2 = 0;
+            } else {
+                d2 >>= 2;
+                d3 = d2 >> 1;
+                d2 += d3;
+                d2 += r32(a0);
+            }
+            w32(a1 + 0x2c, d2);
+            d0 = 0x1078;
+            d1 = 2;
+            a67c();
+        }
+
+        /** 0xB094. */
+        void state18() {
+            int v = ~r8(a1 + 0x4c) & 0xff;
+            w8(a1 + 0x4c, v);
+            if ((v & 0x80) == 0) {
+                a652();
+            }
         }
 
         // ---------------------------------------------------------------- state 0: standing

@@ -72,6 +72,14 @@ final class HeroHandlers {
         port(ports, 0xbd34, R::state36);
         port(ports, 0xbdea, R::bdea);
         port(ports, 0xf7fe, R::f7fe);
+        port(ports, 0xb6fc, R::b6fc);
+        port(ports, 0xb736, R::state26);
+        port(ports, 0xb8ae, R::state28);
+        port(ports, 0xb97e, R::state2a);
+        port(ports, 0xba36, R::state2c);
+        port(ports, 0xba46, R::state2e);
+        port(ports, 0xb966, R::b966);
+        port(ports, 0xb96e, R::b96e);
     }
 
     /** 0xA652 for the level start: Bubba standing (state 0). */
@@ -2414,6 +2422,503 @@ final class HeroHandlers {
             w16(a5 + 0x4c, 0);
             w16(a5 + 0x34, 0);
             w16(a5 + 0x32, 0);
+        }
+
+        // ---------------------------------------------------------------- states 26-2E
+
+        /** movem.l d0-d1/a0-a1 around a call (a5 = Bubba). */
+        private void callSaving(int addr) {
+            int s0 = d0, s1 = d1, sa0 = a0, sa1 = a1;
+            jump(addr);
+            d0 = s0;
+            d1 = s1;
+            a0 = sa0;
+            a1 = sa1;
+        }
+
+        /** 0xB6FC (from 0x9EFA when +$1BA is set): teleport start; ends through the epilogue. */
+        void b6fc() {
+            d2 = 4;
+            d3 = 0;
+            sound();
+            w8(a1 + 0x1ba, 0);
+            w32(a0, 0x60006);
+            w16(a0 + 4, 0);
+            w32(a1 + 0x5c, 0);
+            w32(a1 + 0x60, 0);
+            w8(a1 + 0x57, 0);
+            w32(a1 + 0x28, 0);
+            w32(a1 + 0x2c, 0);
+            w16(a1 + 0x3a, 0x3e8);
+            d1 = 0;
+            d0 = 0x26;
+            setState();
+            sync();
+            HeroStates.epilogue(c);
+            load();
+        }
+
+        /** 0xB736: teleport (fade out, new place, fade in). */
+        void state26() {
+            d2 = r32(a1 + 0x28);
+            d3 = r32(a1 + 0x2c);
+            w32(a1 + 2, r32(a1 + 2) + d2);
+            w32(a1 + 6, r32(a1 + 6) + d3);
+            int v = ~r8(a1 + 0x4c) & 0xff;
+            w8(a1 + 0x4c, v);
+            if ((v & 0x80) != 0) {
+                return;
+            }
+            if ((d1 & 0xffff) == 6) {
+                w8(0xcac8, r8(0xcac8) & ~4);
+                d2 = sb(d2, r8(0x10acb));
+                d2 = sb(d2, d2 - 2);
+                if ((byte) d2 >= 0) {
+                    b7be();
+                    return;
+                }
+                if (r8(0x10acc) != 0) {
+                    if (r8(a0 + 6) == 0) {
+                        return;
+                    }
+                    w8(a0 + 6, 0);
+                    int s0 = d0, s1 = d1, sa0 = a0, sa1 = a1;
+                    a5 = a1;
+                    d0 = 0x19;
+                    jump(0x107b2);
+                    d0 = s0;
+                    d1 = s1;
+                    a0 = sa0;
+                    a1 = sa1;
+                    return;
+                }
+                if (r8(a0 + 5) == 0) {
+                    int t = (short) (r16(a0) - 1);
+                    w16(a0, t);
+                    if (t > 0) {
+                        return;
+                    }
+                    w8(a1 + 0x1bc, 0xff);
+                    w8(a0 + 5, 0xff);
+                    w8(a0 + 6, 0xff);
+                    return;
+                }
+                if (r8(0x10acd) == 0) {
+                    int t = (short) (r16(a0 + 2) - 1);
+                    w16(a0 + 2, t);
+                    if (t > 0) {
+                        return;
+                    }
+                }
+                b790();
+                return;
+            }
+            b796();
+        }
+
+        private void b790() {
+            d2 = 3;
+            d3 = 0;
+            sound();
+            b796();
+        }
+
+        private void b796() {
+            if ((short) d1 >= 0xc) {
+                // 0xB868: back on the feet
+                w32(a1 + 0x28, 0);
+                w32(a1 + 0x2c, 0);
+                w32(a1 + 0x5c, 0xe400);
+                w32(a1 + 0x60, 0x10000);
+                w8(a1 + 0x72, 0xff);
+                w16(a1 + 0x16, 0xffc0);
+                w16(a1 + 0x1a, 0x40);
+                w16(a1 + 0x3a, 0);
+                a2 = 0xbda1;
+                w8(a2, 0);
+                a2++;
+                if (r16(a2) == 0) {
+                    w16(a2, 1);
+                    a2 += 2;
+                }
+                a652();
+                return;
+            }
+            d1 = sw(d1, d1 + 2);
+        }
+
+        private void b7be() {
+            if ((r8(a0 + 5) & 0x80) == 0) {
+                w8(a1 + 0x1bc, 0xff);
+                w8(a0 + 5, 0xff);
+                w8(a0 + 6, 0xff);
+                int s0 = d0, s1 = d1, sa0 = a0, sa1 = a1;
+                a0 = (byte) r8(a1 + 0x1bb) < 3 ? 0x407a : 0x4092;
+                a1 = 0x9966;
+                jump(0x79ee);
+                d0 = s0;
+                d1 = s1;
+                a0 = sa0;
+                a1 = sa1;
+                return;
+            }
+            d0 = sw(d0, r16(0x42a8));
+            if ((short) d0 > 0) {
+                return;
+            }
+            if (r8(a0 + 6) == 0) {
+                b790();
+                return;
+            }
+            if (r8(a1 + 0x1bb) == 3) {
+                w8(a1 + 0x1ac, 0xff);
+                return;
+            }
+            w8(a0 + 6, 0);
+            int s0 = d0, s1 = d1, sa0 = a0, sa1 = a1;
+            d0 = s16(a1 + 0x1be);
+            d1 = s16(a1 + 0x1c0);
+            d0 = (d0 << 16) | (d0 >>> 16);
+            d1 = (d1 << 16) | (d1 >>> 16);
+            w32(a1 + 2, d0);
+            w32(a1 + 6, d1);
+            w32(a1 - 0x3e36, d0);
+            w32(a1 - 0x3e32, d1);
+            d0 -= 0x900000;
+            d1 -= 0x900000;
+            w32(0x108ca, d0);
+            w32(0x108ce, d1);
+            w8(a1 + 0x1aa, 0);
+            w8(a1 + 0x1bc, 0);
+            w32(0x108d2, 0);
+            w8(0x11139, 0xff);
+            jump(0x102c4);
+            a0 = 0x416c;
+            a1 = 0x9966;
+            jump(0x79ee);
+            d0 = s0;
+            d1 = s1;
+            a0 = sa0;
+            a1 = sa1;
+        }
+
+        /** 0xB8AE: leaving the level (walk and climb out). */
+        void state28() {
+            int v = ~r8(a1 + 0x4c) & 0xff;
+            w8(a1 + 0x4c, v);
+            if ((v & 0x80) == 0) {
+                if ((short) d1 >= 6) {
+                    b90c();
+                    return;
+                }
+                if ((d1 & 0xffff) == 2) {
+                    if ((r8(a1 + 0x55) & 0x80) == 0) {
+                        d1 = sw(d1, d1 + 4);
+                        return;
+                    }
+                } else if ((d1 & 0xffff) == 4) {
+                    w8(a1 + 0x55, 0);
+                }
+                d1 = sw(d1, d1 + 2);
+            }
+            b8d6();
+        }
+
+        private void b8d6() {
+            if ((r8(a1 + 0x4c) & 0x80) == 0 || (short) d1 < 0x14) {
+                return;
+            }
+            w16(0x61b62, 0); // chip hunk +$1B62
+            if (s16(a1) >= 0x12) {
+                return;
+            }
+            d2 = sw(d2, r16(a1));
+            w16(a1, r16(a1) + 2);
+            d3 = sb(d3, r8(0xb952 + (short) d2));
+            d4 = sb(d4, r8(0xb953 + (short) d2));
+            d3 = sw(d3, (byte) d3);
+            d4 = sw(d4, (byte) d4);
+            w16(a1 + 2, r16(a1 + 2) + d3);
+            d4 = sw(d4, -d4);
+            w16(0x1090e, r16(0x1090e) + d4);
+        }
+
+        private void b90c() {
+            d0 = sb(d0, r8(0x10ad5));
+            if ((d0 & 0xff) == 0) {
+                b8d6();
+                return;
+            }
+            if ((byte) d0 > 0) {
+                if ((d1 & 0xffff) == 6) {
+                    d1 = 0x12;
+                    return;
+                }
+                if ((short) d1 < 0x14) {
+                    d1 = sw(d1, d1 + 2);
+                    b8d6();
+                }
+                return;
+            }
+            if ((d1 & 0xffff) == 8) {
+                w16(a0, 0x10);
+                int s0 = d0, s1 = d1, sa0 = a0, sa1 = a1;
+                a5 = a1;
+                d0 = 0x21;
+                jump(0x107b2);
+                d0 = s0;
+                d1 = s1;
+                a0 = sa0;
+                a1 = sa1;
+            }
+            if ((short) d1 < 0x10) {
+                d1 = sw(d1, d1 + 2);
+                b8d6();
+                return;
+            }
+            int t = (short) (r16(a0) - 1);
+            w16(a0, t);
+            if (t != 0) {
+                b8d6();
+                return;
+            }
+            w8(0x10ad6, 0xff);
+        }
+
+        /** 0xB966: jump of joy, then state 2A. */
+        void b966() {
+            w32(a1 + 0x28, 0);
+            d1 = 0x12;
+            b976();
+        }
+
+        /** 0xB96E (level start with the end-of-level flag). */
+        void b96e() {
+            d2 = 1;
+            d3 = 0;
+            sound();
+            d1 = 0;
+            b976();
+        }
+
+        private void b976() {
+            w16(a0, 0);
+            d0 = 0x2a;
+            setState();
+        }
+
+        /** 0xB97E: jumping for joy (frames timed by the table 0xBA00). */
+        void state2a() {
+            w8(a1 + 0x4c, r8(a1 + 0x4c) + 1);
+            d2 = sw(d2, d1);
+            d2 = sw(d2, (d2 & 0xffff) >>> 1);
+            d2 = sb(d2, r8(0xba00 + (short) d2));
+            if ((d2 & 0xff) == 0) {
+                if (r8(0x10ad2) != 2) {
+                    return;
+                }
+                w8(0x10ad2, 0);
+                a2 = 0xbda1;
+                w8(a2, 8);
+                a2++;
+                w16(a2, 8);
+                a2 += 2;
+                a652();
+                return;
+            }
+            if ((d2 & 0xff) != r8(a1 + 0x4c)) {
+                return;
+            }
+            w8(a1 + 0x4c, 0);
+            if ((short) d1 < 4 && r8(a1 + 0x72) == 0) {
+                d1 = sw(d1, d1 ^ 2);
+                return;
+            }
+            d1 = sw(d1, d1 + 2);
+            if ((d1 & 0xffff) == 4) {
+                d2 = 0xf;
+                d3 = 0;
+                sound();
+                int s0 = d0, s1 = d1, sa0 = a0, sa1 = a1;
+                d0 = 0x28;
+                a5 = a1;
+                jump(0xfb58);
+                d0 = s0;
+                d1 = s1;
+                a0 = sa0;
+                a1 = sa1;
+            }
+            if ((d1 & 0xffff) == 6) {
+                d2 = 2;
+                d3 = 0;
+                sound();
+            }
+            if ((d1 & 0xffff) == 0x18) {
+                d2 = 0;
+                d3 = 0;
+                sound();
+            }
+            if ((d1 & 0xffff) == 0x12) {
+                a2 = 0xbda1;
+                w32(a2 + 0x25, 0xb966);
+                w8(a2, 8);
+                a2++;
+                w16(a2, 0xe);
+                a2 += 2;
+                a652();
+            }
+        }
+
+        /** 0xBA36: the pending action stored at $BDC6. */
+        void state2c() {
+            a2 = 0xbdc6;
+            a3 = r32(a2);
+            w32(a2, 0);
+            switch (a3) {
+                case 0xb966 -> b966();
+                case 0xbd28 -> { // moveq #$12, d1 / bra 0xBD2E
+                    d1 = 0x12;
+                    d0 = 0x36;
+                    setState();
+                }
+                case 0xbd2c -> {
+                    d1 = 0x1c;
+                    d0 = 0x36;
+                    setState();
+                }
+                default -> jump(a3);
+            }
+        }
+
+        /** 0xBA46: balancing on an edge. */
+        void state2e() {
+            w32(a1 + 0x28, 0);
+            if ((r8(0xcad9) & 0x80) == 0) {
+                a652();
+                return;
+            }
+            if (r8(a1 + 0x72) == 0) {
+                a6a8();
+                return;
+            }
+            if (down()) {
+                if (r8(a0 + 2) == 0) {
+                    w16(a0, r16(a0) + 1);
+                    d1 = 0x22;
+                }
+                bafe();
+                return;
+            }
+            if (left() || right()) {
+                if (r8(a0 + 2) == 0) {
+                    boolean faceLeft = (r8(a1 + 0x55) & 0x80) != 0;
+                    if (left() ? !faceLeft : faceLeft) {
+                        d1 = 6;
+                        a540();
+                        return;
+                    }
+                    w32(a1 + 0x28, left() ? 0xfffe0000 : 0x20000);
+                    int v = ~r8(a1 + 0x4c) & 0xff;
+                    w8(a1 + 0x4c, v);
+                    if ((v & 0x80) == 0) {
+                        d1 = sw(d1, d1 + 2);
+                        if ((short) d1 >= 0xe) {
+                            d1 = 2;
+                        }
+                    }
+                }
+                // 0xBAAE
+                w16(a0, r16(a0) + 2);
+                if (s16(a0) >= 0x3c) {
+                    bb30();
+                    return;
+                }
+                if (r8(a0 + 2) == 0) {
+                    return;
+                }
+                if (s16(a0) <= -0x36) {
+                    baca();
+                    return;
+                }
+                d1 = 2;
+                w16(a0 + 2, 0);
+                bb1e();
+                return;
+            }
+            bafe();
+        }
+
+        private void bafe() {
+            w16(a0, r16(a0) - 2);
+            if (s16(a0) <= -0x3c) {
+                bb30();
+                return;
+            }
+            if (r8(a0 + 2) != 0) {
+                if (s16(a0) >= 0x36) {
+                    baca();
+                    return;
+                }
+                w16(a0 + 2, 0);
+            }
+            d2 = 0xffffffe0;
+            if (down()) {
+                bb20();
+                return;
+            }
+            d1 = 0;
+            bb1e();
+        }
+
+        private void bb1e() {
+            d2 = 0xffffffc0;
+            bb20();
+        }
+
+        private void bb20() {
+            w16(a1 + 0x16, d2);
+            d2 = sw(d2, -d2);
+            w16(a1 + 0x1a, d2);
+            w8(a1 + 0x4c, 0);
+        }
+
+        private void bb30() {
+            if (r8(a0 + 2) != 0) {
+                baca();
+                return;
+            }
+            w8(a0 + 2, 0xff);
+            d1 = 0xe;
+            bb1e();
+        }
+
+        private void baca() {
+            int v = ~r8(a1 + 0x4c) & 0xff;
+            w8(a1 + 0x4c, v);
+            if ((v & 0x80) != 0) {
+                return;
+            }
+            d2 = 0x18;
+            d3 = 4;
+            if ((short) d1 >= (short) d2) {
+                d2 = 0x22;
+                d3 = 2;
+            }
+            d1 = sw(d1, d1 + 2);
+            if ((short) d1 < (short) d2) {
+                return;
+            }
+            d1 = sw(d1, d1 - 0xa);
+            w8(a0 + 3, r8(a0 + 3) + 1);
+            if ((byte) d3 > (byte) r8(a0 + 3)) {
+                return;
+            }
+            d2 = 1;
+            d3 = 0;
+            sound();
+            d1 = 0;
+            d0 = 0x30;
+            setState();
         }
 
         // ---------------------------------------------------------------- state 0: standing

@@ -41,12 +41,15 @@ public final class PortFuzz {
         for (int t = 0; t < trials; t++) {
             m.restore(base);
             c.restoreRegisters(regs);
-            if (routine == 0xbea8) {
+            if (routine >= 0xa318 && routine < 0xbea8) {
+                setupHero(c, m, rnd, routine);
+            } else if (routine == 0xbea8) {
                 setupStix(m, rnd);
             } else {
                 setup(m, rnd);
             }
             byte[] before = m.snapshot();
+            int[] setRegs = c.saveRegisters();
             try {
                 c.callNested(routine, 200_000, true);
             } catch (IllegalStateException e) {
@@ -54,10 +57,23 @@ public final class PortFuzz {
                 continue;
             }
             byte[] orig = m.snapshot();
+            int[] origRegs = c.saveRegisters();
             m.restore(before);
-            c.restoreRegisters(regs);
+            c.restoreRegisters(setRegs);
             Ports.runJava(c, routine);
             byte[] mine = m.snapshot();
+            int[] mineRegs = c.saveRegisters();
+            if (Boolean.getBoolean("fuzz.regs")) {
+                for (int r = 0; r < 15; r++) {
+                    if (r != 7 && origRegs[r] != mineRegs[r]) {
+                        if (bad < 10) {
+                            System.out.printf("trial %d: register %d original %X java %X%n", t, r, origRegs[r], mineRegs[r]);
+                        }
+                        bad++;
+                        break;
+                    }
+                }
+            }
             for (int a = 0; a < orig.length; a++) {
                 if (orig[a] != mine[a] && (a >= sp || a < sp - 0x400)) {
                     if (bad < 10) {
@@ -69,6 +85,48 @@ public final class PortFuzz {
             }
         }
         System.out.printf("$%X: %d trials, %d skipped, %d different%n", routine, trials, skipped, bad);
+    }
+
+    /** Bubba's state handlers: random joystick (and condition codes), sub-state, hero fields. */
+    private static void setupHero(M68k c, GameMemory m, Random r, int routine) {
+        int h = 0x10910;
+        int joy = r.nextInt(256);
+        m.write8(0x8269, joy);
+        c.d[0] = (c.d[0] & 0xffffff00) | joy;
+        c.setCcr(joy & 0x1f);
+        c.d[1] = r.nextInt(0x1a) * 2;
+        c.a[0] = 0xbda6;
+        c.a[1] = h;
+        for (int i = 0; i < 0x1a; i++) {
+            if (r.nextInt(3) == 0) {
+                m.write8(0xbda6 + i, r.nextInt(256));
+            }
+        }
+        m.write16(0xbda6, r.nextInt(0x50) - 0x28);
+        m.write8(0xbda8, r.nextBoolean() ? 0xff : 0);
+        m.write8(0xbda9, r.nextInt(5));
+        m.write8(h + 0x4c, r.nextInt(256));
+        m.write8(h + 0x55, r.nextBoolean() ? 0xff : 0);
+        m.write8(h + 0x56, r.nextBoolean() ? 0xff : 0);
+        m.write8(h + 0x57, r.nextBoolean() ? 0xff : 0);
+        m.write8(h + 0x72, r.nextBoolean() ? 0xff : 0);
+        m.write32(h + 0x28, r.nextInt(0x100000) - 0x80000);
+        m.write32(h + 0x2c, r.nextInt(0x100000) - 0x80000);
+        m.write16(h + 0x3a, r.nextInt(3) == 0 ? 5 : 0);
+        m.write8(0xcad9, r.nextInt(256));
+        m.write8(0x10ad5, new int[]{0, 1, 0xff}[r.nextInt(3)]);
+        m.write8(0x10ad2, r.nextInt(3));
+        m.write8(0x10acb, r.nextInt(5));
+        m.write8(0x10acc, r.nextInt(2));
+        m.write8(0x10acd, r.nextInt(2));
+        m.write8(h + 0x1bb, r.nextInt(5));
+        m.write16(0x42a8, r.nextInt(3) - 1);
+        m.write8(0x11138, r.nextInt(2));
+        m.write8(0x1112e, r.nextInt(4) == 0 ? 1 : 0);
+        m.write8(0x1112f, r.nextInt(2));
+        m.write32(0xbdc6, new int[]{0xb966, 0xbd28, 0xbd2c}[r.nextInt(3)]);
+        m.write16(h, r.nextInt(0x14));
+        m.write16(0x10ab4, 0);
     }
 
     /** Stix (0xBEA8): random state, timers, speeds, carrier, near Bubba or an enemy, or far. */

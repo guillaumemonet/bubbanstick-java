@@ -40,6 +40,45 @@ public final class Ports {
         HeroContacts.register(PORTS);
         SolidObjects.register(PORTS);
         BlockAnims.register(PORTS);
+        PORTS.put(0x7956, new Port() { // clear the two screens
+            @Override
+            public void run(M68k c) {
+                GameMemory m = c.mem;
+                c.a[0] = m.read32(0x8282); // movem.l $8282(pc) (shown $8280 by the disassembly)
+                c.a[1] = m.read32(0x8286);
+                c.d[1] = 0;
+                for (int i = 0; i < 0x2580; i++) {
+                    m.write32(c.a[0], 0);
+                    m.write32(c.a[1], 0);
+                    c.a[0] += 4;
+                    c.a[1] += 4;
+                }
+                c.d[0] = (c.d[0] & 0xffff0000) | 0xffff;
+            }
+
+            @Override
+            public int[] outputs() {
+                return new int[]{0, 1, 8, 9};
+            }
+        });
+        PORTS.put(0x79ee, new Port() { // display request (palette fade) at $42A2
+            @Override
+            public void run(M68k c) {
+                GameMemory m = c.mem;
+                int a3 = 0x42a2;
+                m.write32(a3, c.a[1]);
+                m.write32(a3 + 4, 0xf0030);
+                m.write16(a3 + 8, c.d[0]);
+                m.write32(a3 + 10, c.a[0]);
+                m.write32(a3 + 14, c.a[2]);
+                c.a[3] = a3 + 18;
+            }
+
+            @Override
+            public int[] outputs() {
+                return new int[]{11};
+            }
+        });
         PORTS.put(0xc67a, new Port() {
             @Override
             public void run(M68k c) {

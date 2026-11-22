@@ -349,6 +349,21 @@ final class BehaviourPort {
                 m.write16(0x17cdc, (byte) m.read8(a4 + 3));
                 return collisionMove(c, m, o, a4, 0x17cd8, true);
             }
+            case 0xe292 -> { // zone +$54 entered once (bit 7 of its first byte): script +$50 / +$36, end
+                int a0 = m.read32(o + 0x54);
+                c.a[0] = a0;
+                boolean go = (m.read8(a0 + 6) & 0x40) != 0;
+                if (!go) {
+                    int v = m.read8(a0);
+                    m.write8(a0, v | 0x80);
+                    go = (v & 0x80) == 0;
+                }
+                if (go) {
+                    c.a[4] = m.read32(o + 0x50);
+                    m.write32(o + 0xc, m.read32(o + 0x36));
+                }
+                return Integer.MIN_VALUE; // the original ends the frame with RTS (+$10 kept)
+            }
             default -> { // not ported yet: original fragment until it is back at the dispatcher
                 c.a[3] = table;
                 c.a[4] = a4;

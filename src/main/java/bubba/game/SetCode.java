@@ -293,6 +293,10 @@ final class SetCode {
         switch (fileId) {
             case "5" -> {
                 add(m, 0x12c18, SetCode::s2Callback);
+                add(m, 0x12c12, c -> {
+                    c.mem.write16(c.a[0] - 0x16, 1);
+                    s2Callback(c);
+                });
                 add(m, 0x1302e, SetCode::s2Bounce);
             }
             case "3" -> {
@@ -322,6 +326,23 @@ final class SetCode {
                     c.mem.write32(c.a[0], c.a[5]);
                     c.a[0] += 4;
                     c.mem.write8(c.a[0], 0xff);
+                });
+                add(m, 0x1316c, c -> { // Stix put on the object a5
+                    GameMemory g = c.mem;
+                    int o = c.a[5], st = 0x10988;
+                    c.a[0] = st;
+                    c.d[0] = sw(c.d[0], g.read16(o + 0xa));
+                    c.d[0] = sw(c.d[0], (short) c.d[0] >> 1);
+                    g.write16(st + 0xa, c.d[0]);
+                    g.write32(st + 2, g.read32(o + 2));
+                    g.write32(st + 6, g.read32(o + 6));
+                    g.write32(st + 0x28, 0);
+                    g.write32(st + 0x2c, 0);
+                    g.write16(st + 0x9c, 4);
+                    g.write8(st + 0x83, g.read8(st + 0x83) & ~2);
+                    g.write8(st + 0x9c, 0);
+                    g.write32(st + 0x44, 0);
+                    g.write16(o + 0xa, 0xffff);
                 });
                 add(m, 0x1315e, c -> {
                     c.mem.write32(c.a[5] + 2, c.mem.read32(0x1098a));

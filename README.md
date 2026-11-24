@@ -125,9 +125,79 @@ src/main/java/bubba/
   dev/      outils de développement : captures, couverture, fuzzing des portages
 ```
 
-## Avertissement
+## Mentions légales et données du jeu
 
-Bubba 'n' Stix est © 1994 Core Design. Ce projet est un travail de préservation et
-d'étude, sans but commercial, et n'est affilié ni à Core Design ni à ses ayants droit. Il ne
-distribue aucune donnée du jeu : il faut fournir ses propres images de disquettes. Les captures
-d'écran de ce README servent seulement à illustrer le projet.
+### Implémentation indépendante du moteur
+
+Ce projet est une réimplémentation indépendante du moteur de *Bubba 'n' Stix*, conçue pour reproduire le comportement du jeu d'origine sur les plateformes modernes.
+
+Le moteur a été développé de façon indépendante, par analyse technique, rétro-ingénierie (désassemblage de l'exécutable 68000 d'origine) et tests de compatibilité. Il n'inclut ni ne redistribue le code source propriétaire du jeu d'origine.
+
+### Fichiers du jeu d'origine
+
+Ce projet nécessite des fichiers du jeu d'origine, comme les deux disquettes du jeu (archives `.zip` TOSEC ou images ADF), pour fonctionner.
+
+**Les fichiers du jeu d'origine ne sont pas inclus dans ce projet.**
+
+Chaque utilisateur doit se procurer et fournir ses propres fichiers de jeu auprès d'une source légalement autorisée. Avant de télécharger ou d'utiliser ce moteur, l'utilisateur doit confirmer qu'il possède une copie du jeu d'origine obtenue légalement.
+
+Au premier lancement, le jeu cherche les disquettes à côté de l'application, dans le dossier courant et dans Téléchargements, ou propose de les télécharger depuis Amiga Museum ; il en extrait ses données une seule fois dans le dossier utilisateur. Les captures d'écran de ce README servent seulement à illustrer le projet.
+
+Eloane Studio n'héberge, ne distribue ni ne fournit de copies non autorisées de données de jeu protégées par le droit d'auteur.
+
+### Droits d'auteur et marques
+
+Les noms, marques, graphismes, musiques et autres éléments propriétaires de *Bubba 'n' Stix* restent la propriété de leurs titulaires respectifs (Core Design).
+
+Ce projet est une implémentation indépendante et non officielle ; il n'est ni affilié, ni approuvé, ni soutenu par les développeurs ou les éditeurs du jeu d'origine.
+
+### Préservation
+
+Ce projet a pour but de préserver le comportement technique et l'expérience de jeu des jeux vidéo classiques, tout en les rendant accessibles sur les systèmes modernes.
+
+Le moteur est fourni à des fins de compatibilité, de préservation et d'éducation.
+
+### Crédits
+
+Jeu d'origine : Core Design (1994). Remake Java : **Guillaume Monet**.
+
+<details>
+<summary>English version</summary>
+
+### Legal Notice & Game Assets
+
+#### Independent Engine Implementation
+
+This project is an independent reimplementation of the *Bubba 'n' Stix* engine, designed to reproduce the original game's behavior on modern platforms.
+
+The engine has been developed independently through technical analysis, reverse engineering (disassembly of the original 68000 executable), and compatibility testing. It does not include or redistribute the original game's proprietary source code.
+
+#### Original Game Files
+
+This project requires original game files, such as the game's two disks (TOSEC `.zip` archives or Amiga ADF disk images), to run.
+
+**Original game files are not included in this project.**
+
+Users must obtain and provide their own game files from a legally authorized source. Before downloading or using this engine, users are required to confirm that they possess a legally obtained copy of the original game.
+
+On first launch the game looks for the disks next to the application, in the current folder and in Downloads, or offers to download them from Amiga Museum; it extracts its data once into the user folder. The screenshots in this README only illustrate the project.
+
+Eloane Studio does not host, distribute, or provide unauthorized copies of copyrighted game assets.
+
+#### Copyright & Trademarks
+
+All original game names, trademarks, graphics, music, and other proprietary assets of *Bubba 'n' Stix* remain the property of their respective copyright holders (Core Design).
+
+This project is an independent, unofficial implementation and is not affiliated with, endorsed by, or sponsored by the original game's developers or publishers.
+
+#### Preservation
+
+The purpose of this project is to preserve the technical behavior and gameplay experience of classic video games while making them accessible on modern systems.
+
+The engine is provided for compatibility, preservation, and educational purposes.
+
+#### Credits
+
+Original game: Core Design (1994). Java remake: **Guillaume Monet**.
+
+</details>

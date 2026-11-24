@@ -1,178 +1,141 @@
-# Bubba 'n' Stix — remake Java
+# Bubba 'n' Stix — Java remake
 
-Remake fidèle du jeu Amiga **Bubba 'n' Stix** (Core Design, 1994), en Java pur.
+*[Version française](README_fr.md)*
 
-Le dépôt ne contient **aucun fichier du jeu original**. Au premier lancement, le jeu extrait
-lui-même les graphismes, les sons, les musiques et le code des deux disquettes, que vous devez
-fournir.
+Faithful remake of the Amiga game **Bubba 'n' Stix** (Core Design, 1994), in pure Java.
+
+The repository contains **no files from the original game**. On first launch, the game itself
+extracts the graphics, sounds, music and code from the two disks, which you must
+provide.
 
 <p align="center">
-  <img src="docs/screenshots/title.png" width="400" alt="Écran titre">
+  <img src="docs/screenshots/title.png" width="400" alt="Title screen">
 </p>
 
 | | |
 |---|---|
-| ![Niveau 1 : la forêt](docs/screenshots/stage1.png) | ![Niveau 2 : la prison](docs/screenshots/stage2.png) |
-| **Niveau 1** : la forêt | **Niveau 2** : la prison |
-| ![Niveau 3 : la lave](docs/screenshots/stage3.png) | ![Niveau 4 : sous l'eau](docs/screenshots/stage4.png) |
-| **Niveau 3** : la lave | **Niveau 4** : sous l'eau |
-| ![Niveau 5 : le laboratoire](docs/screenshots/stage5.png) | ![Niveau 5 : la cage électrique](docs/screenshots/stage5b.png) |
-| **Niveau 5** : le laboratoire | **Niveau 5** : la cage électrique |
+| ![Stage 1: the forest](docs/screenshots/stage1.png) | ![Stage 2: the prison](docs/screenshots/stage2.png) |
+| **Stage 1**: the forest | **Stage 2**: the prison |
+| ![Stage 3: the lava](docs/screenshots/stage3.png) | ![Stage 4: underwater](docs/screenshots/stage4.png) |
+| **Stage 3**: the lava | **Stage 4**: underwater |
+| ![Stage 5: the laboratory](docs/screenshots/stage5.png) | ![Stage 5: the electric cage](docs/screenshots/stage5b.png) |
+| **Stage 5**: the laboratory | **Stage 5**: the electric cage |
 
-## Principe
+## How it works
 
-Le jeu est reconstruit routine par routine à partir du désassemblage de l'exécutable original
-(`Bubba`, 68000) :
+The game is rebuilt routine by routine from the disassembly of the original executable
+(`Bubba`, 68000):
 
-1. **Extraction** (paquet `bubba.extract`). Le jeu lit les disquettes (système de fichiers
-   AmigaDOS), décompresse les fichiers (RNC ProPack 1 et 2, SPAK, NoisePacker) et convertit tout
-   en formats courants : PNG, WAV, MOD et JSON.
-2. **Portage.** Chaque routine de l'exécutable original a été réécrite en Java : la boucle
-   principale, Bubba et Stix, les objets, la caméra, la barre d'état, le démarrage des niveaux
-   et le code propre à chaque niveau. Les routines s'appellent entre elles directement en Java.
-3. **Vérification.** Un petit interpréteur 68000 (`bubba.cpu.M68k`) sert de référence pendant le
-   développement : avec `-PverifyPorts`, chaque routine Java est rejouée sur le code original à
-   partir du même état, et la mémoire et les registres sont comparés, image par image. Les cas
-   rares sont testés par tirages au hasard (`bubba.dev.PortFuzz`).
+1. **Extraction** (package `bubba.extract`). The game reads the disks (AmigaDOS file
+   system), decompresses the files (RNC ProPack 1 and 2, SPAK, NoisePacker) and converts everything
+   to common formats: PNG, WAV, MOD and JSON.
+2. **Porting.** Every routine of the original executable has been rewritten in Java: the main
+   loop, Bubba and Stix, the objects, the camera, the status bar, stage startup
+   and each stage's own code. The routines call each other directly in Java.
+3. **Verification.** A small 68000 interpreter (`bubba.cpu.M68k`) serves as a reference during
+   development: with `-PverifyPorts`, each Java routine is replayed on the original code from
+   the same state, and memory and registers are compared, frame by frame. Rare cases
+   are tested by random sampling (`bubba.dev.PortFuzz`).
 
-### Avancement
+### Progress
 
-**Tout ce que le jeu exécute est en Java** : en jeu comme au démarrage d'un niveau,
-l'interpréteur n'exécute plus aucune instruction de l'original (mesuré par `bubba.dev.Coverage`
-sur 15 000 images de jeu aléatoire et les 5 niveaux). Toutes les routines portées sont vérifiées
-sans aucune différence avec l'original, y compris ses bizarreries, qui font partie du comportement
-du jeu.
+**Everything the game executes is in Java**: in game as well as at stage startup,
+the interpreter no longer executes a single instruction of the original (measured by `bubba.dev.Coverage`
+over 15,000 frames of random play and the 5 stages). All ported routines are verified
+with no difference from the original, including its quirks, which are part of the game's
+behavior.
 
-**Reste à faire** :
-- les états internes du jeu (registres du 68000) sont encore représentés comme tels : le code
-  Java suit l'original au plus près, il pourra être simplifié une fois la référence moins
-  nécessaire.
+**Still to do**:
+- the game's internal state (68000 registers) is still represented as such: the
+  Java code follows the original as closely as possible; it can be simplified once the reference is less
+  necessary.
 
-## Jouer
+## Playing
 
-1. **Télécharger le jeu** : l'archive de la [dernière release](../../releases) pour votre système
-   (`BubbaNStix-<version>-windows-amd64.zip`...). Java est inclus : rien d'autre à installer.
-2. **Les deux disquettes** du jeu original (format TOSEC) : le jeu propose de les télécharger
-   lui-même au premier lancement ; sinon, sur Amiga Museum :
+1. **Download the game**: the archive from the [latest release](../../releases) for your system
+   (`BubbaNStix-<version>-windows-amd64.zip`...). Java is included: nothing else to install.
+2. **The two disks** of the original game (TOSEC format): the game offers to download them
+   itself on first launch; otherwise, from Amiga Museum:
    - [Bubba 'n' Stix (1994)(Core)(Disk 1 of 2)[cr LTD].zip](https://amigamuseum.emu-france.info/Fichiers/ADF/B/Bubba%20'n'%20Stix%20(1994)(Core)(Disk%201%20of%202)%5bcr%20LTD%5d.zip)
    - [Bubba 'n' Stix (1994)(Core)(Disk 2 of 2)[cr LTD].zip](https://amigamuseum.emu-france.info/Fichiers/ADF/B/Bubba%20'n'%20Stix%20(1994)(Core)(Disk%202%20of%202)%5bcr%20LTD%5d.zip)
-3. **Lancer** `BubbaNStix` (`BubbaNStix.exe` sous Windows).
+3. **Run** `BubbaNStix` (`BubbaNStix.exe` on Windows).
 
-Au premier lancement, le jeu cherche les disquettes (archives `.zip` ou images `.adf`) à côté de
-l'application, dans le dossier courant et dans Téléchargements. S'il ne les trouve pas, il
-propose de les **télécharger directement depuis Amiga Museum** (un clic), ou de les choisir à la
-main. Il en extrait ses données en quelques secondes, une seule fois, dans le dossier
-utilisateur :
+On first launch, the game looks for the disks (`.zip` archives or `.adf` images) next to
+the application, in the current folder and in Downloads. If it cannot find them, it
+offers to **download them directly from Amiga Museum** (one click), or to pick them
+by hand. It extracts its data from them in a few seconds, once only, into the user
+folder:
 
-| Système | Dossier |
+| System | Folder |
 |---|---|
 | Windows | `%LOCALAPPDATA%\BubbaNStix` |
 | macOS | `~/Library/Application Support/BubbaNStix` |
 | Linux | `~/.local/share/bubbanstix` |
 
-Les disquettes y sont aussi copiées (`disks/`), pour pouvoir refaire l'extraction sans les
-redemander. Supprimer ce dossier remet le jeu à zéro.
+The disks are also copied there (`disks/`), so the extraction can be redone without asking
+for them again. Deleting this folder resets the game.
 
-## Développement
+## Development
 
-Prérequis : **JDK 21**. Gradle et son wrapper font le reste.
+Requirements: **JDK 21**. Gradle and its wrapper do the rest.
 
 ```
-gradlew run                  # Linux / macOS : ./gradlew run
-gradlew run -PverifyPorts    # chaque routine portée est comparée au code original, image par image
-gradlew releaseZip           # application autonome (jpackage, JRE inclus) zippée dans build/distributions
-gradlew jpackageImage -PinstallerType=msi   # installeur natif (msi/exe : WiX ; deb, rpm, dmg, pkg)
+gradlew run                  # Linux / macOS: ./gradlew run
+gradlew run -PverifyPorts    # each ported routine is compared to the original code, frame by frame
+gradlew releaseZip           # standalone application (jpackage, JRE included) zipped into build/distributions
+gradlew jpackageImage -PinstallerType=msi   # native installer (msi/exe: WiX; deb, rpm, dmg, pkg)
 ```
 
-- **Données du jeu** : `gradlew run` utilise `../assets` s'il existe. Sinon, il passe par
-  l'extraction du premier lancement décrite plus haut. `-Dbubba.assets=<dossier>` impose un
-  dossier.
-- **Release** : jpackage produit une application pour le système sur lequel il tourne. Pour
-  publier Windows, macOS et Linux, il faut construire la release sur chacun d'eux, par exemple
-  avec une CI.
-- **Outils de développement** (`bubba.dev`) :
-  - `ExtractCheck` compare l'extraction Java à un dossier `assets` de référence ;
-  - `ReadmeShots` produit les captures d'écran de ce README ;
-  - `EmuShot` et `PortFuzz` vérifient les portages.
-- Le projet s'ouvre directement dans NetBeans, IntelliJ IDEA ou VS Code comme projet Gradle.
+- **Game data**: `gradlew run` uses `../assets` if it exists. Otherwise, it goes through
+  the first-launch extraction described above. `-Dbubba.assets=<folder>` forces a
+  folder.
+- **Release**: jpackage produces an application for the system it runs on. To
+  publish for Windows, macOS and Linux, the release must be built on each of them, for example
+  with a CI.
+- **Development tools** (`bubba.dev`):
+  - `ExtractCheck` compares the Java extraction against a reference `assets` folder;
+  - `ReadmeShots` produces the screenshots in this README;
+  - `EmuShot` and `PortFuzz` verify the ports.
+- The project opens directly in NetBeans, IntelliJ IDEA or VS Code as a Gradle project.
 
-## Contrôles
+## Controls
 
-| Touche | Action |
+| Key | Action |
 |---|---|
-| Flèches / ZQSD / WASD | directions (joystick) |
-| Espace / Ctrl / Entrée | feu |
-| P | pause (une touche pour reprendre) |
-| Échap | retour / quitter |
-| F1–F4 | fenêtre ×1 à ×4 |
-| F11 | plein écran |
-| N | *(debug)* niveau suivant |
-| B | *(debug)* affichage de debug |
+| Arrows / ZQSD / WASD | directions (joystick) |
+| Space / Ctrl / Enter | fire |
+| P | pause (any key to resume) |
+| Esc | back / quit |
+| F1–F4 | window ×1 to ×4 |
+| F11 | full screen |
+| N | *(debug)* next stage |
+| B | *(debug)* debug display |
 
-## Organisation
+## Layout
 
 ```
 src/main/java/bubba/
-  extract/  extraction des disquettes : AmigaDOS, RNC ProPack, sons, musiques, images, niveaux
-  engine/   fenêtre, boucle 50 Hz (VBL PAL), entrées, chargement des assets
-  audio/    lecteur ProTracker, bruitages
-  scenes/   écran titre, options, niveau
-  level/    carte, blocs, parallaxe, placement des objets
-  entity/   sprites, machines virtuelles d'animation et de comportement
-  emu/      exécution de la boucle de jeu originale, barre d'état, sons
-  game/     routines originales portées en Java (Ports = registre des portages)
-  cpu/      interpréteur 68000 et mémoire (oracle de vérification)
-  dev/      outils de développement : captures, couverture, fuzzing des portages
+  extract/  disk extraction: AmigaDOS, RNC ProPack, sounds, music, images, stages
+  engine/   window, 50 Hz loop (PAL VBL), input, asset loading
+  audio/    ProTracker player, sound effects
+  scenes/   title screen, options, stage
+  level/    map, blocks, parallax, object placement
+  entity/   sprites, animation and behavior virtual machines
+  emu/      execution of the original game loop, status bar, sounds
+  game/     original routines ported to Java (Ports = registry of ports)
+  cpu/      68000 interpreter and memory (verification oracle)
+  dev/      development tools: screenshots, coverage, port fuzzing
 ```
 
-## Mentions légales et données du jeu
+## Legal Notice & Game Assets
 
-### Implémentation indépendante du moteur
-
-Ce projet est une réimplémentation indépendante du moteur de *Bubba 'n' Stix*, conçue pour reproduire le comportement du jeu d'origine sur les plateformes modernes.
-
-Le moteur a été développé de façon indépendante, par analyse technique, rétro-ingénierie (désassemblage de l'exécutable 68000 d'origine) et tests de compatibilité. Il n'inclut ni ne redistribue le code source propriétaire du jeu d'origine.
-
-### Fichiers du jeu d'origine
-
-Ce projet nécessite des fichiers du jeu d'origine, comme les deux disquettes du jeu (archives `.zip` TOSEC ou images ADF), pour fonctionner.
-
-**Les fichiers du jeu d'origine ne sont pas inclus dans ce projet.**
-
-Chaque utilisateur doit se procurer et fournir ses propres fichiers de jeu auprès d'une source légalement autorisée. Avant de télécharger ou d'utiliser ce moteur, l'utilisateur doit confirmer qu'il possède une copie du jeu d'origine obtenue légalement.
-
-Au premier lancement, le jeu cherche les disquettes à côté de l'application, dans le dossier courant et dans Téléchargements, ou propose de les télécharger depuis Amiga Museum ; il en extrait ses données une seule fois dans le dossier utilisateur. Les captures d'écran de ce README servent seulement à illustrer le projet.
-
-Eloane Studio n'héberge, ne distribue ni ne fournit de copies non autorisées de données de jeu protégées par le droit d'auteur.
-
-### Droits d'auteur et marques
-
-Les noms, marques, graphismes, musiques et autres éléments propriétaires de *Bubba 'n' Stix* restent la propriété de leurs titulaires respectifs (Core Design).
-
-Ce projet est une implémentation indépendante et non officielle ; il n'est ni affilié, ni approuvé, ni soutenu par les développeurs ou les éditeurs du jeu d'origine.
-
-### Préservation
-
-Ce projet a pour but de préserver le comportement technique et l'expérience de jeu des jeux vidéo classiques, tout en les rendant accessibles sur les systèmes modernes.
-
-Le moteur est fourni à des fins de compatibilité, de préservation et d'éducation.
-
-### Crédits
-
-Jeu d'origine : Core Design (1994). Remake Java : **Guillaume Monet**.
-
-<details>
-<summary>English version</summary>
-
-### Legal Notice & Game Assets
-
-#### Independent Engine Implementation
+### Independent Engine Implementation
 
 This project is an independent reimplementation of the *Bubba 'n' Stix* engine, designed to reproduce the original game's behavior on modern platforms.
 
 The engine has been developed independently through technical analysis, reverse engineering (disassembly of the original 68000 executable), and compatibility testing. It does not include or redistribute the original game's proprietary source code.
 
-#### Original Game Files
+### Original Game Files
 
 This project requires original game files, such as the game's two disks (TOSEC `.zip` archives or Amiga ADF disk images), to run.
 
@@ -184,20 +147,18 @@ On first launch the game looks for the disks next to the application, in the cur
 
 Eloane Studio does not host, distribute, or provide unauthorized copies of copyrighted game assets.
 
-#### Copyright & Trademarks
+### Copyright & Trademarks
 
 All original game names, trademarks, graphics, music, and other proprietary assets of *Bubba 'n' Stix* remain the property of their respective copyright holders (Core Design).
 
 This project is an independent, unofficial implementation and is not affiliated with, endorsed by, or sponsored by the original game's developers or publishers.
 
-#### Preservation
+### Preservation
 
 The purpose of this project is to preserve the technical behavior and gameplay experience of classic video games while making them accessible on modern systems.
 
 The engine is provided for compatibility, preservation, and educational purposes.
 
-#### Credits
+### Credits
 
 Original game: Core Design (1994). Java remake: **Guillaume Monet**.
-
-</details>
